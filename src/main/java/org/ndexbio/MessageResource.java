@@ -96,7 +96,7 @@ public class MessageResource {
 		
 		@Override
 		public void run() {
-			NetworkQueryManager b = new NetworkQueryManager(networkId, parameters.getSearchDepth(), parameters.getEdgeLimit(), parameters.isErrorWhenLimitIsOver());
+			NetworkQueryManager b = new NetworkQueryManager(networkId, parameters.getSearchDepth(), parameters.getEdgeLimit(), parameters.getErrorWhenLimitIsOver());
 			try {
 				b.oneStepInterConnectQuery(o, startingNodeIds);
 			} catch (IOException e) {
@@ -151,7 +151,7 @@ public class MessageResource {
 
 		}
 		
-			private class CXNetworkQueryWriterThread extends Thread {
+		private class CXNetworkQueryWriterThread extends Thread {
 			private OutputStream o;
 			private String networkId;
 			private SimplePathQuery parameters;
@@ -166,7 +166,7 @@ public class MessageResource {
 			
 			@Override
 			public void run() {
-				NetworkQueryManager b = new NetworkQueryManager(networkId, parameters.getSearchDepth(), parameters.getEdgeLimit(), parameters.isErrorWhenLimitIsOver());
+				NetworkQueryManager b = new NetworkQueryManager(networkId, parameters.getSearchDepth(), parameters.getEdgeLimit(), parameters.getErrorWhenLimitIsOver());
 				try {
 					b.neighbourhoodQuery(o, startingNodeIds);
 				} catch (IOException e) {

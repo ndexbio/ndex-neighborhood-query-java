@@ -7,12 +7,20 @@ import javax.ws.rs.core.Application;
 
 public class NeighborhoodQueryApplication extends Application {
 
-	  public NeighborhoodQueryApplication() {}
+    	 private final Set<Object> _providers = new HashSet<>();
+
+	  public NeighborhoodQueryApplication() {
+		  _providers.add(new MessageResource());
+		 
+	        _providers.add(new DefaultExceptionMapper());
+	        _providers.add(new BadRequestExceptionMapper());
+
+	  }
 
 	  @Override
 	  public Set<Object> getSingletons() {
-	    HashSet<Object> set = new HashSet<>();
-	    set.add(new MessageResource());
-	    return set;
+	 //   HashSet<Object> set = new HashSet<>();
+	 //   set.add(new MessageResource());
+	    return _providers;
 	  }
 }
