@@ -354,14 +354,18 @@ public class NetworkQueryManager {
 				
 			
 		if( !citationIds.isEmpty()) {
+			long citationCntr = 0;
 			writer.startAspectFragment(CitationElement.ASPECT_NAME);
 			writer.openFragment();
 			try (AspectIterator<CitationElement> ei = new AspectIterator<>(UUID.fromString(netId),
 				CitationElement.ASPECT_NAME, CitationElement.class, pathPrefix+netId + "/")) {
 				while (ei.hasNext()) {
 					CitationElement ft = ei.next();
-					if ( citationIds.contains(ft.getId()))
+					if ( citationIds.contains(ft.getId())) {
 						writer.writeElement(ft);
+						if (ft.getId() > citationCntr)
+							citationCntr = ft.getId();
+					}	
 				}	
 			}
 			
@@ -369,6 +373,7 @@ public class NetworkQueryManager {
 			writer.endAspectFragment();
 			MetaDataElement mde = new MetaDataElement(CitationElement.ASPECT_NAME,mdeVer);
 			mde.setElementCount((long)writer.getFragmentLength());
+			mde.setIdCounter(citationCntr);
 			postmd.add(mde);
 		}	
 
@@ -433,14 +438,18 @@ public class NetworkQueryManager {
 
 				
 		if( !supportIds.isEmpty()) {
+			long supportCntr = 0;
 			writer.startAspectFragment(SupportElement.ASPECT_NAME);
 			writer.openFragment();
 			try (AspectIterator<SupportElement> ei = new AspectIterator<>(UUID.fromString(netId),
 					SupportElement.ASPECT_NAME, SupportElement.class, pathPrefix+netId + "/")) {
 				while (ei.hasNext()) {
 					SupportElement ft = ei.next();
-					if ( supportIds.contains(ft.getId()))
+					if ( supportIds.contains(ft.getId())) {
 						writer.writeElement(ft);
+						if ( supportCntr < ft.getId())
+							supportCntr=ft.getId();
+					}	
 				}	
 			}
 			
@@ -448,6 +457,7 @@ public class NetworkQueryManager {
 			writer.endAspectFragment();
 			MetaDataElement mde = new MetaDataElement(SupportElement.ASPECT_NAME,mdeVer);
 			mde.setElementCount((long)writer.getFragmentLength());
+			mde.setIdCounter(supportCntr);
 			postmd.add(mde);
 					
 		}
