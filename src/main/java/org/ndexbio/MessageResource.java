@@ -9,27 +9,20 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import javax.annotation.security.PermitAll;
-import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.ResponseBuilder;
 
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
-import org.ndexbio.model.exceptions.BadRequestException;
+import org.eclipse.jetty.util.log.Log;
 import org.ndexbio.model.exceptions.NdexException;
-import org.ndexbio.model.object.CXSimplePathQuery;
 import org.ndexbio.model.object.SimplePathQuery;
-import org.ndexbio.model.object.SimpleQuery;
-
-import javax.ws.rs.core.MediaType;
 
 @Path("/v1")
 public class MessageResource {
@@ -54,6 +47,7 @@ public class MessageResource {
 			final SimplePathQuery queryParameters
 			) throws SolrServerException, IOException, NdexException {
 		
+		Log.getRootLogger().info("Interconnect Query term: " + queryParameters.getSearchString());
 		Set<Long> nodeIds = new TreeSet<>();
 
 		try (SingleNetworkSolrIdxManager idxr = new SingleNetworkSolrIdxManager(networkIdStr)) {
@@ -63,7 +57,8 @@ public class MessageResource {
 				nodeIds.add(Long.valueOf((String) f));
 			}
 		}
-		System.out.println("Solr returned " + nodeIds.size() + " ids.");
+		
+		Log.getRootLogger().info("Solr returned " + nodeIds.size() + " ids.");
 		PipedInputStream in = new PipedInputStream();
 		 
 		PipedOutputStream out;
@@ -71,6 +66,7 @@ public class MessageResource {
  		try {
 			out = new PipedOutputStream(in);
 		} catch (IOException e) {
+			in.close();
 			throw new NdexException("IOExcetion when creating the piped output stream: "+ e.getMessage());
 		}
 		
@@ -119,10 +115,12 @@ public class MessageResource {
 		@Path("/network/{networkId}/query")
 		@Produces("application/json")
 
-		public Response  queryNetworkNodes(
+		public Response  queryNetwork(
 				@PathParam("networkId") final String networkIdStr,
 				final SimplePathQuery queryParameters
 				) throws SolrServerException, IOException, NdexException {
+			
+			Log.getRootLogger().info("Neighorhood Query term: " + queryParameters.getSearchString());
 			
 			Set<Long> nodeIds = new TreeSet<>();
 
@@ -133,7 +131,7 @@ public class MessageResource {
 					nodeIds.add(Long.valueOf((String) f));
 				}
 			}
-			System.out.println("Solr returned " + nodeIds.size() + " ids.");
+			Log.getRootLogger().info("Solr returned " + nodeIds.size() + " ids.");
 			PipedInputStream in = new PipedInputStream();
 			 
 			PipedOutputStream out;
@@ -141,6 +139,7 @@ public class MessageResource {
 	 		try {
 				out = new PipedOutputStream(in);
 			} catch (IOException e) {
+				in.close();
 				throw new NdexException("IOExcetion when creating the piped output stream: "+ e.getMessage());
 			}
 			

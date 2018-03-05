@@ -8,6 +8,10 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.RolloverFileOutputStream;
 import org.jboss.resteasy.plugins.server.servlet.HttpServletDispatcher;
+import org.slf4j.Logger;
+
+import ch.qos.logback.classic.Level;
+
 import org.eclipse.jetty.util.log.Log;
 
 /**
@@ -17,6 +21,7 @@ import org.eclipse.jetty.util.log.Log;
 public class App 
 {
 	
+
 	 static final String APPLICATION_PATH = "/query";
 	 static final String CONTEXT_ROOT = "/";
 	  
@@ -29,7 +34,7 @@ public class App
 			
 	    try
 	    {
-	      new App().run();
+	      run();
 	    }
 	    catch (Throwable t)
 	    {
@@ -37,12 +42,15 @@ public class App
 	    }
 	  }
 	  
-	  public void run() throws Exception
+	  public static void run() throws Exception
 	  {
 		System.out.println("You can use -Dndex.queryport=8284 and -Dndex.fileRepoPrefix=/opt/ndex/data/ to set runtime parameters.");
-
+		ch.qos.logback.classic.Logger rootLog = 
+        		(ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+		rootLog.setLevel(Level.INFO);
+		
 		//We are configuring a RolloverFileOutputStream with file name pattern  and appending property
-		RolloverFileOutputStream os = new RolloverFileOutputStream("yyyy_mm_dd_queries.log", true);
+		RolloverFileOutputStream os = new RolloverFileOutputStream("logs/queries_yyyy_mm_dd.log", true);
 		
 		//We are creating a print stream based on our RolloverFileOutputStream
 		PrintStream logStream = new PrintStream(os);
@@ -58,6 +66,7 @@ public class App
 	    NetworkQueryManager.setDataFilePathPrefix(serverFileRepoPrefix);
 	    final Server server = new Server(port);
 	    
+	    rootLog.info("Server started on port " + portStr  + ", with network data repo at " + serverFileRepoPrefix);
 
 	    // Setup the basic Application "context" at "/".
 	    // This is also known as the handler tree (in Jetty speak).
@@ -82,7 +91,8 @@ public class App
 	  //Now we are appending a line to our log 
 	  	Log.getRootLogger().info("Embedded Jetty logging started.", new Object[]{});
 	    
-	    System.out.println("Server started on port " + port);
+	    System.out.println("Server started on port " + port + ", with network data repo at " + serverFileRepoPrefix);
 	    server.join();
+	    
 	  } 
 }

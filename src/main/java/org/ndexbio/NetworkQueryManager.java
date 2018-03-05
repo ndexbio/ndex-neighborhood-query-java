@@ -133,7 +133,7 @@ public class NetworkQueryManager {
 				}
 
 			}
-			System.out.println("Query returned " + writer.getFragmentLength() + " edges.");
+			accLogger.info("Query returned " + writer.getFragmentLength() + " edges.");
 			writer.closeFragment();
 			writer.endAspectFragment();
 			
@@ -145,7 +145,7 @@ public class NetworkQueryManager {
 			}
 		}
 		
-		System.out.println ( "done writing out edges.");
+		accLogger.info ( "done writing out edges.");
 		//write nodes
 		writer.startAspectFragment(NodesElement.ASPECT_NAME);
 		writer.openFragment();
@@ -174,7 +174,9 @@ public class NetworkQueryManager {
 		writer.end();
 		long t2 = Calendar.getInstance().getTimeInMillis();
 
-		System.out.println ("Done - " + (t2-t1)/1000f + " seconds.");
+		accLogger.info("Total " + (t2-t1)/1000f + " seconds. Returned " + edgeIds.size() + " edges and " + nodeIds.size() + " nodes.",
+				new Object[]{});
+		//("Done - " + (t2-t1)/1000f + " seconds.");
 	}
 
 	private void writeOtherAspectsForSubnetwork(Set<Long> nodeIds, Set<Long> edgeIds, NdexCXNetworkWriter writer,
@@ -642,9 +644,9 @@ public class NetworkQueryManager {
 		writer.end();
 		long t2 = Calendar.getInstance().getTimeInMillis();
 
-		System.out.println ("Done - " + (t2-t1)/1000f + " seconds.");
-	//	accLogger.info("Total " + (t2-t1)/1000f + " seconds. Returned " + edgeTable.size() + " edges and " + finalNodes.size() + " nodes.",
-	//			new Object[]{});
+	//	System ("Done - " + (t2-t1)/1000f + " seconds.");
+		accLogger.info("Total " + (t2-t1)/1000f + " seconds. Returned " + edgeTable.size() + " edges and " + finalNodes.size() + " nodes.",
+				new Object[]{});
 	}
 
 	private void writeContextAspect(NdexCXNetworkWriter writer, MetaDataCollection md, MetaDataCollection postmd)
