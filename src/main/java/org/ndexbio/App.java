@@ -15,7 +15,6 @@ import ch.qos.logback.classic.Level;
 import org.eclipse.jetty.util.log.Log;
 
 /**
- * Hello world!
  *
  */
 public class App 
