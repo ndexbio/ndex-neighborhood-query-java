@@ -86,7 +86,7 @@ public class NetworkQueryManager {
 		
 		boolean limitIsOver = false;
 		
-		NdexCXNetworkWriter writer = new NdexCXNetworkWriter(out);
+		NdexCXNetworkWriter writer = new NdexCXNetworkWriter(out, true);
 		MetaDataCollection md = prepareMetadata() ;
 		writer.start();
 		writer.writeMetadata(md);
@@ -538,7 +538,7 @@ public class NetworkQueryManager {
 		
 		usingOldVisualPropertyAspect = false;
 		
-		NdexCXNetworkWriter writer = new NdexCXNetworkWriter(out);
+		NdexCXNetworkWriter writer = new NdexCXNetworkWriter(out, true);
 		MetaDataCollection md = prepareMetadata() ;
 		writer.start();
 		writer.writeMetadata(md);

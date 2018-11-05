@@ -79,7 +79,7 @@ public class MessageResource {
 
 		UUID networkId = UUID.fromString(networkIdStr);
 		try (SingleNetworkSolrIdxManager idxr = new SingleNetworkSolrIdxManager(networkIdStr)) {
-			SolrDocumentList r = idxr.getNodeIdsByQuery(queryParameters.getSearchString(), -1);
+			SolrDocumentList r = idxr.getNodeIdsByQuery(queryParameters.getSearchString(), 1000000);
 			for (SolrDocument d : r) {
 				Object f = d.getFieldValue("id");
 				nodeIds.add(Long.valueOf((String) f));
@@ -154,7 +154,7 @@ public class MessageResource {
 			Set<Long> nodeIds = new TreeSet<>();
 
 			try (SingleNetworkSolrIdxManager idxr = new SingleNetworkSolrIdxManager(networkIdStr)) {
-				SolrDocumentList r = idxr.getNodeIdsByQuery(queryParameters.getSearchString(), -1);
+				SolrDocumentList r = idxr.getNodeIdsByQuery(queryParameters.getSearchString(), 1000000);
 				for (SolrDocument d : r) {
 					Object f = d.getFieldValue("id");
 					nodeIds.add(Long.valueOf((String) f));
