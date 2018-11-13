@@ -122,7 +122,7 @@ public class MessageResource {
 		public void run() {
 			NetworkQueryManager b = new NetworkQueryManager(networkId, parameters);
 			try {
-				b.oneStepInterConnectQuery(o, startingNodeIds);
+				b.interConnectQuery(o, startingNodeIds);
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

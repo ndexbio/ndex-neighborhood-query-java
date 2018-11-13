@@ -71,7 +71,7 @@ public class NetworkQueryManager {
 	public static void setDataFilePathPrefix(String path) {
 		pathPrefix = path;
 	}
-	
+		
 	/**
 	 * Neighbourhood query
 	 * @param out
@@ -206,7 +206,7 @@ public class NetworkQueryManager {
 		ArrayList<NetworkAttributesElement> provenanceRecords = new ArrayList<> (2);
 		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasDerivedFrom", netId));
 		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasGeneratedBy",
-				"Ndex Neighborhood Query/v1.1 (Depth=" + this.depth +"; Query=\""+ this.searchTerms + "\")"));
+				"NDEx Neighborhood Query/v1.1 (Depth=" + this.depth +"; Query=\""+ this.searchTerms + "\")"));
 		
 		writeOtherAspectsForSubnetwork(nodeIds, edgeIds, writer, md, postmd, limitIsOver,
 				"Neighborhood query result on network" , provenanceRecords);
@@ -529,7 +529,14 @@ public class NetworkQueryManager {
 	}
 	
 	
-	public void oneStepInterConnectQuery(OutputStream out, Set<Long> nodeIds ) throws IOException {
+	public void interConnectQuery(OutputStream out, Set<Long> nodeIds) throws IOException {
+		if (this.depth >=2 ) {
+			oneStepInterConnectQuery(out,nodeIds);
+		} else 
+			directConnectQuery(out,nodeIds);
+	}
+	
+	private void oneStepInterConnectQuery(OutputStream out, Set<Long> nodeIds ) throws IOException {
 		long t1 = Calendar.getInstance().getTimeInMillis();
 		Map<Long, EdgesElement> edgeTable = new TreeMap<> ();
 		
@@ -645,7 +652,7 @@ public class NetworkQueryManager {
 			System.out.println("Query returned " + writer.getFragmentLength() + " edges.");
 
 			MetaDataElement mde = new MetaDataElement(EdgesElement.ASPECT_NAME, mdeVer);
-			mde.setElementCount((long) edgeTable.size());
+			mde.setElementCount(Long.valueOf(edgeTable.size()));
 			mde.setIdCounter(Collections.max(edgeTable.keySet()));
 			postmd.add(mde);
 		}
@@ -669,7 +676,7 @@ public class NetworkQueryManager {
 		writer.endAspectFragment();
 		if ( nodeIds.size()>0) {
 			MetaDataElement mde1 = new MetaDataElement(NodesElement.ASPECT_NAME,mdeVer);
-			mde1.setElementCount((long)finalNodes.size());
+			mde1.setElementCount(Long.valueOf(finalNodes.size()));
 			mde1.setIdCounter(Collections.max(nodeIds));
 			postmd.add(mde1);
 		}
@@ -677,7 +684,7 @@ public class NetworkQueryManager {
 		ArrayList<NetworkAttributesElement> provenanceRecords = new ArrayList<> (2);
 		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasDerivedFrom", netId));
 		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasGeneratedBy",
-				"Ndex Interconnect Query/v1.1 (Query=\""+ this.searchTerms + "\")"));
+				"NDEx Interconnect Query/v1.1 (Query=\""+ this.searchTerms + "\")"));
 
 		
 		writeOtherAspectsForSubnetwork(finalNodes, edgeTable.keySet(), writer, md, postmd, limitIsOver,
@@ -692,6 +699,105 @@ public class NetworkQueryManager {
 				new Object[]{});
 	}
 
+	private void directConnectQuery(OutputStream out, Set<Long> nodeIds ) throws IOException {
+		long t1 = Calendar.getInstance().getTimeInMillis();
+		
+		Set<Long> edgeIds = new TreeSet<> ();
+		
+		usingOldVisualPropertyAspect = false;
+		
+		NdexCXNetworkWriter writer = new NdexCXNetworkWriter(out, true);
+		MetaDataCollection md = prepareMetadata() ;
+		writer.start();
+		writer.writeMetadata(md);
+		
+		MetaDataCollection postmd = new MetaDataCollection();
+		
+		writeContextAspect(writer, md, postmd);
+	
+		//write nodes
+		int cnt = 0; 
+		writer.startAspectFragment(NodesElement.ASPECT_NAME);
+		writer.openFragment();
+		try (AspectIterator<NodesElement> ei = new AspectIterator<>(netId,
+					NodesElement.ASPECT_NAME, NodesElement.class, pathPrefix)) {
+			while (ei.hasNext()) {
+				NodesElement node = ei.next();
+				if (nodeIds.contains(Long.valueOf(node.getId()))) {
+						writer.writeElement(node);
+						cnt++;
+						if (cnt == nodeIds.size())
+							break;
+				}
+			}
+		}
+		writer.closeFragment();
+		writer.endAspectFragment();
+		if ( nodeIds.size()>0) {
+			MetaDataElement mde1 = new MetaDataElement(NodesElement.ASPECT_NAME,mdeVer);
+			mde1.setElementCount(Long.valueOf(nodeIds.size()));
+			mde1.setIdCounter(Collections.max(nodeIds));
+			postmd.add(mde1);
+		}
+		
+		cnt = 0;
+		boolean limitIsOver = false;
+		writer.startAspectFragment(EdgesElement.ASPECT_NAME);
+		writer.openFragment();
+
+		if (md.getMetaDataElement(EdgesElement.ASPECT_NAME) != null) {
+			try (AspectIterator<EdgesElement> ei = new AspectIterator<>(netId,
+					EdgesElement.ASPECT_NAME, EdgesElement.class, pathPrefix )) {
+				while (ei.hasNext()) {
+					EdgesElement edge = ei.next();					
+					if (nodeIds.contains(edge.getSource()) && nodeIds.contains(edge.getTarget())) {
+						cnt ++;
+						if ( edgeLimit > 0 && cnt > edgeLimit) {
+							if ( this.errorOverLimit) {
+								writer.closeFragment();
+								writer.endAspectFragment();
+								writer.end(false, "EdgeLimitExceeded");
+								return;
+							}
+							limitIsOver = true;
+							break;
+						}
+						writer.writeElement(edge);
+						edgeIds.add(edge.getId());
+					} 
+				}
+			}
+		}
+		
+		System.out.println( edgeIds.size()  + " edges from directConnection query.");
+		writer.closeFragment();
+		writer.endAspectFragment();
+
+		MetaDataElement mde = new MetaDataElement(EdgesElement.ASPECT_NAME, mdeVer);
+		mde.setElementCount(Long.valueOf(edgeIds.size()));
+		mde.setIdCounter(Collections.max(edgeIds));
+		postmd.add(mde);
+		
+		ArrayList<NetworkAttributesElement> provenanceRecords = new ArrayList<> (2);
+		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasDerivedFrom", netId));
+		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasGeneratedBy",
+				"NDEx Direct Connection Query/v1.1 (Query=\""+ this.searchTerms + "\")"));
+
+		
+		writeOtherAspectsForSubnetwork(nodeIds, edgeIds, writer, md, postmd, limitIsOver,
+				"Direct connection query result on network", provenanceRecords);
+		
+		writer.writeMetadata(postmd);
+		writer.end();
+		long t2 = Calendar.getInstance().getTimeInMillis();
+
+		accLogger.info("Total " + (t2-t1)/1000f + " seconds. Returned " + edgeIds.size() + " edges and " +
+		    nodeIds.size() + " nodes.",
+				new Object[]{});
+	}
+	
+	
+	
 	private void writeContextAspect(NdexCXNetworkWriter writer, MetaDataCollection md, MetaDataCollection postmd)
 			throws IOException, JsonProcessingException {
 		//process namespace aspect	
