@@ -162,7 +162,7 @@ public class NetworkQueryManager {
 		if ( nodeIds.size()>0) {
 			MetaDataElement mde1 = new MetaDataElement(NodesElement.ASPECT_NAME,mdeVer);
 			mde1.setElementCount((long)nodeIds.size());
-			mde1.setIdCounter(Collections.max(nodeIds));
+			mde1.setIdCounter(nodeIds.isEmpty()? 0L : Collections.max(nodeIds));
 			postmd.add(mde1);
 		}
 		
@@ -199,7 +199,7 @@ public class NetworkQueryManager {
 		if  (edgeIds.size()>0) {
 			MetaDataElement mde = new MetaDataElement(EdgesElement.ASPECT_NAME,mdeVer);
 			mde.setElementCount((long)edgeIds.size());
-			mde.setIdCounter(Collections.max(edgeIds));
+			mde.setIdCounter(edgeIds.isEmpty()? 0L : Collections.max(edgeIds));
 			postmd.add(mde);
 		}
 
@@ -653,7 +653,7 @@ public class NetworkQueryManager {
 
 			MetaDataElement mde = new MetaDataElement(EdgesElement.ASPECT_NAME, mdeVer);
 			mde.setElementCount(Long.valueOf(edgeTable.size()));
-			mde.setIdCounter(Collections.max(edgeTable.keySet()));
+			mde.setIdCounter(edgeTable.isEmpty()? 0L:Collections.max(edgeTable.keySet()));
 			postmd.add(mde);
 		}
 		
@@ -677,7 +677,7 @@ public class NetworkQueryManager {
 		if ( nodeIds.size()>0) {
 			MetaDataElement mde1 = new MetaDataElement(NodesElement.ASPECT_NAME,mdeVer);
 			mde1.setElementCount(Long.valueOf(finalNodes.size()));
-			mde1.setIdCounter(Collections.max(nodeIds));
+			mde1.setIdCounter(nodeIds.isEmpty()? 0L: Collections.max(nodeIds));
 			postmd.add(mde1);
 		}
 		
@@ -736,7 +736,7 @@ public class NetworkQueryManager {
 		if ( nodeIds.size()>0) {
 			MetaDataElement mde1 = new MetaDataElement(NodesElement.ASPECT_NAME,mdeVer);
 			mde1.setElementCount(Long.valueOf(nodeIds.size()));
-			mde1.setIdCounter(Collections.max(nodeIds));
+			mde1.setIdCounter(nodeIds.isEmpty()? 0L:Collections.max(nodeIds));
 			postmd.add(mde1);
 		}
 		
@@ -773,9 +773,10 @@ public class NetworkQueryManager {
 		writer.closeFragment();
 		writer.endAspectFragment();
 
+		
 		MetaDataElement mde = new MetaDataElement(EdgesElement.ASPECT_NAME, mdeVer);
 		mde.setElementCount(Long.valueOf(edgeIds.size()));
-		mde.setIdCounter(Collections.max(edgeIds));
+		mde.setIdCounter((edgeIds.isEmpty() ? 0L : Collections.max(edgeIds)));
 		postmd.add(mde);
 		
 		ArrayList<NetworkAttributesElement> provenanceRecords = new ArrayList<> (2);
