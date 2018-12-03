@@ -203,13 +203,14 @@ public class NetworkQueryManager {
 			postmd.add(mde);
 		}
 
+		String queryName = directOnly ? "Adjacent" : "Neighborhood" ;
 		ArrayList<NetworkAttributesElement> provenanceRecords = new ArrayList<> (2);
 		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasDerivedFrom", netId));
 		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasGeneratedBy",
-				"NDEx Neighborhood Query/v1.1 (Depth=" + this.depth +"; Query=\""+ this.searchTerms + "\")"));
+				"NDEx "+ queryName + " Query/v1.1 (Depth=" + this.depth +"; Query=\""+ this.searchTerms + "\")"));
 		
 		writeOtherAspectsForSubnetwork(nodeIds, edgeIds, writer, md, postmd, limitIsOver,
-				"Neighborhood query result on network" , provenanceRecords);
+				queryName + "  query result on network" , provenanceRecords);
 		
 		writer.writeMetadata(postmd);
 		writer.end();
@@ -599,7 +600,7 @@ public class NetworkQueryManager {
 			}
 		}
 		
-		System.out.println( edgeTable.size()  + " edges from neighborhood query.");
+		System.out.println( edgeTable.size()  + " edges from 2-step interconnect query.");
 		//trim the nodes that only connect to one starting nodes.
 		Set<Long> finalNodes = new TreeSet<>();
 		for (Map.Entry<Long, NodeDegreeHelper> e : nodeNeighborIdTable.entrySet()) {
@@ -636,29 +637,52 @@ public class NetworkQueryManager {
 			edgeTable = newTable;
 		}
 	
-		finalNodes.addAll(nodeIds);
 		
 		// write edge aspect 
+		writer.startAspectFragment(EdgesElement.ASPECT_NAME);
+		writer.openFragment();
+
+		// write the edges in the table first
 		if ( edgeTable.size() > 0 ) {
-			writer.startAspectFragment(EdgesElement.ASPECT_NAME);
-			writer.openFragment();
 
 			for (EdgesElement e : edgeTable.values()) {
 					writer.writeElement(e);
 			}
 	
-			writer.closeFragment();
-			writer.endAspectFragment();
-			System.out.println("Query returned " + writer.getFragmentLength() + " edges.");
-
-			MetaDataElement mde = new MetaDataElement(EdgesElement.ASPECT_NAME, mdeVer);
-			mde.setElementCount(Long.valueOf(edgeTable.size()));
-			mde.setIdCounter(edgeTable.isEmpty()? 0L:Collections.max(edgeTable.keySet()));
-			postmd.add(mde);
 		}
+		// write extra edges that found between the new eighboring nodes.
+		int additionalEdgeCnt = 0 ;
+		long finalEdgeIdCounter = edgeTable.isEmpty()? 0L: Collections.max(edgeTable.keySet());
 		
+		if (finalNodes.size()>0 && md.getMetaDataElement(EdgesElement.ASPECT_NAME) != null) {
+			try (AspectIterator<EdgesElement> ei = new AspectIterator<>(netId,
+					EdgesElement.ASPECT_NAME, EdgesElement.class, pathPrefix )) {
+				while (ei.hasNext()) {
+					EdgesElement edge = ei.next();					
+					if ((!edgeTable.containsKey( edge.getId())) && 
+							finalNodes.contains(edge.getSource()) && finalNodes.contains(edge.getTarget())) {
+						writer.writeElement(edge);
+						if (edge.getId()>finalEdgeIdCounter) 
+							finalEdgeIdCounter = edge.getId();
+					}
+				}	
+			}
+		}	
+		
+		
+		writer.closeFragment();
+		writer.endAspectFragment();
+		System.out.println("Query returned " + writer.getFragmentLength() + " edges.");
+
+		MetaDataElement mde = new MetaDataElement(EdgesElement.ASPECT_NAME, mdeVer);
+		mde.setElementCount(Long.valueOf(edgeTable.size() + additionalEdgeCnt));
+		mde.setIdCounter(Long.valueOf(finalEdgeIdCounter));
+		postmd.add(mde);
+
 		
 		System.out.println ( "done writing out edges.");
+
+		finalNodes.addAll(nodeIds);
 		
 		//write nodes
 		writer.startAspectFragment(NodesElement.ASPECT_NAME);
