@@ -207,7 +207,7 @@ public class NetworkQueryManager {
 		ArrayList<NetworkAttributesElement> provenanceRecords = new ArrayList<> (2);
 		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasDerivedFrom", netId));
 		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasGeneratedBy",
-				"NDEx "+ queryName + " Query/v1.1 (Depth=" + this.depth +"; Query=\""+ this.searchTerms + "\")"));
+				"NDEx "+ queryName + " Query/v1.1 (Depth=" + this.depth +"; Query terms=\""+ this.searchTerms + "\")"));
 		
 		writeOtherAspectsForSubnetwork(nodeIds, edgeIds, writer, md, postmd, limitIsOver,
 				queryName + "  query result on network" , provenanceRecords);
@@ -806,11 +806,11 @@ public class NetworkQueryManager {
 		ArrayList<NetworkAttributesElement> provenanceRecords = new ArrayList<> (2);
 		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasDerivedFrom", netId));
 		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasGeneratedBy",
-				"NDEx Direct Connection Query/v1.1 (Query=\""+ this.searchTerms + "\")"));
+				"NDEx Direct Query/v1.1 (Query terms=\""+ this.searchTerms + "\")"));
 
 		
 		writeOtherAspectsForSubnetwork(nodeIds, edgeIds, writer, md, postmd, limitIsOver,
-				"Direct connection query result on network", provenanceRecords);
+				"Direct query result on network", provenanceRecords);
 		
 		writer.writeMetadata(postmd);
 		writer.end();
