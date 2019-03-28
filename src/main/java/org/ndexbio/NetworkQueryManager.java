@@ -224,7 +224,7 @@ public class NetworkQueryManager {
 			MetaDataCollection md, MetaDataCollection postmd, boolean limitIsOver, String networkNamePrefix,
 			Collection<NetworkAttributesElement> extraNetworkAttributes) throws IOException, JsonProcessingException {
 		//process node attribute aspect
-		if (md.getMetaDataElement(NodeAttributesElement.ASPECT_NAME) != null) {
+		if (  md.getMetaDataElement(NodeAttributesElement.ASPECT_NAME) != null) {
 			writer.startAspectFragment(NodeAttributesElement.ASPECT_NAME);
 			writer.openFragment();
 			try (AspectIterator<NodeAttributesElement> ei = new AspectIterator<>(netId, NodeAttributesElement.ASPECT_NAME, NodeAttributesElement.class, pathPrefix)) {
@@ -652,7 +652,7 @@ public class NetworkQueryManager {
 		}
 		// write extra edges that found between the new eighboring nodes.
 		int additionalEdgeCnt = 0 ;
-		long finalEdgeIdCounter = edgeTable.isEmpty()? 0L: Collections.max(edgeTable.keySet());
+		long finalEdgeIdCounter = edgeTable.isEmpty()? 0L: Collections.max(edgeTable.keySet()).longValue();
 		
 		if (finalNodes.size()>0 && md.getMetaDataElement(EdgesElement.ASPECT_NAME) != null) {
 			try (AspectIterator<EdgesElement> ei = new AspectIterator<>(netId,
@@ -662,8 +662,9 @@ public class NetworkQueryManager {
 					if ((!edgeTable.containsKey( edge.getId())) && 
 							finalNodes.contains(edge.getSource()) && finalNodes.contains(edge.getTarget())) {
 						writer.writeElement(edge);
-						if (edge.getId()>finalEdgeIdCounter) 
-							finalEdgeIdCounter = edge.getId();
+						additionalEdgeCnt ++;
+						if (edge.getId().longValue()>finalEdgeIdCounter) 
+							finalEdgeIdCounter = edge.getId().longValue();
 					}
 				}	
 			}
