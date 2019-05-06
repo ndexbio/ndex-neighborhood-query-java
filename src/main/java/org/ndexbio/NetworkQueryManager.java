@@ -166,7 +166,7 @@ public class NetworkQueryManager {
 			postmd.add(mde1);
 		}
 		
-		//check if we need to ouput the full neibourhood.
+		//check if we need to output the full neighborhood.
 		if ( !directOnly && md.getMetaDataElement(EdgesElement.ASPECT_NAME) != null) {
 			writer.startAspectFragment(EdgesElement.ASPECT_NAME);
 			writer.openFragment();
