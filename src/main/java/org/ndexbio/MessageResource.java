@@ -75,6 +75,7 @@ public class MessageResource {
 			) throws SolrServerException, IOException, NdexException {
 		
 		Log.getRootLogger().info("Interconnect Query term: " + queryParameters.getSearchString());
+		Log.getRootLogger().info("Interconnect Query edgeLimit: " + queryParameters.getEdgeLimit());
 		Set<Long> nodeIds = new TreeSet<>();
 
 		UUID networkId = UUID.fromString(networkIdStr);
@@ -149,6 +150,7 @@ public class MessageResource {
 				) throws SolrServerException, IOException, NdexException {
 			
 			Log.getRootLogger().info("Neighorhood Query term: " + queryParameters.getSearchString());
+			Log.getRootLogger().info("Neighorhood Query edgeLimit: " + queryParameters.getEdgeLimit());
 			UUID networkId = UUID.fromString(networkIdStr);
 
 			Set<Long> nodeIds = new TreeSet<>();

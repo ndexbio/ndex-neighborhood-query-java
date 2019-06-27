@@ -619,15 +619,18 @@ public class NetworkQueryManager {
 		if ( edgeLimit >0 && edgeTable.size() > edgeLimit) {
 			if ( this.errorOverLimit) {
 				writer.end(false, "EdgeLimitExceeded");
+				System.out.println("Wrote the Exceed limit error and return.");
 				return;
 			}
 			limitIsOver = true;
 			//redo the edges and nodes
 			finalNodes.clear();
 			int i = 0;
+			System.out.println("Redo edges and nodes.");
+
 			Map<Long,EdgesElement> newTable = new HashMap<>(edgeTable.size());
 			for (Map.Entry<Long,EdgesElement> entry :edgeTable.entrySet()) { 
-				if (i == edgeLimit )
+				if (i >= edgeLimit )
 					break;
 				i++;	
 				newTable.put(entry.getKey(), entry.getValue());
@@ -637,50 +640,59 @@ public class NetworkQueryManager {
 			edgeTable = newTable;
 		}
 	
-		
+		System.out.println("Start writing edges.");
+
 		// write edge aspect 
 		writer.startAspectFragment(EdgesElement.ASPECT_NAME);
 		writer.openFragment();
 
+		Set<Long> finalEdgeIds = new TreeSet<> ();
+		
 		// write the edges in the table first
 		if ( edgeTable.size() > 0 ) {
-
 			for (EdgesElement e : edgeTable.values()) {
-					writer.writeElement(e);
+				writer.writeElement(e);
+				finalEdgeIds.add(e.getId());	
 			}
-	
 		}
+		
 		// write extra edges that found between the new neighboring nodes.
-		//int additionalEdgeCnt = 0 ;
-		long finalEdgeIdCounter = edgeTable.isEmpty()? 0L: Collections.max(edgeTable.keySet()).longValue();
 		
 		if (finalNodes.size()>0 && md.getMetaDataElement(EdgesElement.ASPECT_NAME) != null) {
 			try (AspectIterator<EdgesElement> ei = new AspectIterator<>(netId,
 					EdgesElement.ASPECT_NAME, EdgesElement.class, pathPrefix )) {
-				while (ei.hasNext()) {
+				while ( ei.hasNext()) {
+					if ( edgeLimit > 0 &&(finalEdgeIds.size() > edgeLimit) ) {
+						if ( this.errorOverLimit) {
+							writer.closeFragment();
+							writer.endAspectFragment();
+							writer.end(false, "EdgeLimitExceeded");
+							return;
+						}
+						limitIsOver = true;
+						break;
+					}
+					
 					EdgesElement edge = ei.next();					
-					if ((!edgeTable.containsKey( edge.getId())) && 
+					if ((!finalEdgeIds.contains( edge.getId())) && 
 							finalNodes.contains(edge.getSource()) && finalNodes.contains(edge.getTarget())) {
 						writer.writeElement(edge);
-						edgeTable.put(edge.getId(), edge);
-						//additionalEdgeCnt ++;
-						if (edge.getId().longValue()>finalEdgeIdCounter) 
-							finalEdgeIdCounter = edge.getId().longValue();
+						finalEdgeIds.add(edge.getId());
 					}
 				}	
 			}
 		}	
 		
-		
 		writer.closeFragment();
 		writer.endAspectFragment();
 		System.out.println("Query returned " + writer.getFragmentLength() + " edges.");
 
-		MetaDataElement mde = new MetaDataElement(EdgesElement.ASPECT_NAME, mdeVer);
-		mde.setElementCount(Long.valueOf(edgeTable.size() ));
-		mde.setIdCounter(Long.valueOf(finalEdgeIdCounter));
-		postmd.add(mde);
-
+		if (md.getMetaDataElement(EdgesElement.ASPECT_NAME) != null) {
+			MetaDataElement mde = new MetaDataElement(EdgesElement.ASPECT_NAME, mdeVer);
+			mde.setElementCount(Long.valueOf(finalEdgeIds.size() ));
+			mde.setIdCounter(finalEdgeIds.isEmpty()? 0L : Collections.max(finalEdgeIds).longValue());
+			postmd.add(mde);
+		}
 		
 		System.out.println ( "done writing out edges.");
 
@@ -713,7 +725,7 @@ public class NetworkQueryManager {
 				"NDEx Interconnect Query/v1.1 (Query=\""+ this.searchTerms + "\")"));
 
 		
-		writeOtherAspectsForSubnetwork(finalNodes, edgeTable.keySet(), writer, md, postmd, limitIsOver,
+		writeOtherAspectsForSubnetwork(finalNodes, finalEdgeIds, writer, md, postmd, limitIsOver,
 				"Interconnect query result on network", provenanceRecords);
 		
 		writer.writeMetadata(postmd);
@@ -721,7 +733,7 @@ public class NetworkQueryManager {
 		long t2 = Calendar.getInstance().getTimeInMillis();
 
 	//	System ("Done - " + (t2-t1)/1000f + " seconds.");
-		accLogger.info("Total " + (t2-t1)/1000f + " seconds. Returned " + edgeTable.size() + " edges and " + finalNodes.size() + " nodes.",
+		accLogger.info("Total " + (t2-t1)/1000f + " seconds. Returned " + finalEdgeIds.size() + " edges and " + finalNodes.size() + " nodes.",
 				new Object[]{});
 	}
 
