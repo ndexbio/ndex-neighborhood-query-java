@@ -8,6 +8,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,6 +19,7 @@ import java.util.UUID;
 
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
+import org.ndexbio.cxio.aspects.datamodels.ATTRIBUTE_DATA_TYPE;
 import org.ndexbio.cxio.aspects.datamodels.CyVisualPropertiesElement;
 import org.ndexbio.cxio.aspects.datamodels.EdgeAttributesElement;
 import org.ndexbio.cxio.aspects.datamodels.EdgesElement;
@@ -85,6 +87,7 @@ public class NetworkQueryManager {
 		usingOldVisualPropertyAspect = false;
 		
 		boolean limitIsOver = false;
+		Set<Long> queryNodeIds = new HashSet<>(nodeIds);
 		
 		NdexCXNetworkWriter writer = new NdexCXNetworkWriter(out, true);
 		MetaDataCollection md = prepareMetadata() ;
@@ -210,7 +213,7 @@ public class NetworkQueryManager {
 				"NDEx "+ queryName + " Query/v1.1 (Depth=" + this.depth +"; Query terms=\""+ this.searchTerms + "\")"));
 		
 		writeOtherAspectsForSubnetwork(nodeIds, edgeIds, writer, md, postmd, limitIsOver,
-				queryName + "  query result on network" , provenanceRecords);
+				queryName + "  query result on network" , provenanceRecords, queryNodeIds);
 		
 		writer.writeMetadata(postmd);
 		writer.end();
@@ -222,7 +225,7 @@ public class NetworkQueryManager {
 
 	private void writeOtherAspectsForSubnetwork(Set<Long> nodeIds, Set<Long> edgeIds, NdexCXNetworkWriter writer,
 			MetaDataCollection md, MetaDataCollection postmd, boolean limitIsOver, String networkNamePrefix,
-			Collection<NetworkAttributesElement> extraNetworkAttributes) throws IOException, JsonProcessingException {
+			Collection<NetworkAttributesElement> extraNetworkAttributes, Set<Long> queryNodeIds) throws IOException, JsonProcessingException {
 		//process node attribute aspect
 		if (  md.getMetaDataElement(NodeAttributesElement.ASPECT_NAME) != null) {
 			writer.startAspectFragment(NodeAttributesElement.ASPECT_NAME);
@@ -235,6 +238,12 @@ public class NetworkQueryManager {
 						}
 					}
 			}
+			
+			// add the queryNode attribute on starting nodes
+			for (Long nodeId: queryNodeIds) {
+				writer.writeElement( new NodeAttributesElement(null, nodeId,"querynode", "true", ATTRIBUTE_DATA_TYPE.BOOLEAN));
+			}
+			
 			writer.closeFragment();
 			writer.endAspectFragment();
 			MetaDataElement mde = new MetaDataElement(NodeAttributesElement.ASPECT_NAME,mdeVer);
@@ -512,11 +521,14 @@ public class NetworkQueryManager {
 	
 	private MetaDataCollection prepareMetadata() {
 		MetaDataCollection md = new MetaDataCollection();
+		boolean hasNodeAttributes = false;
 		File dir = new File(pathPrefix+netId+"/aspects");
 		  File[] directoryListing = dir.listFiles();
 		  for (File child : directoryListing) {
 			  String aspName = child.getName();
 			  MetaDataElement e;
+			  if (aspName.equals(NodeAttributesElement.ASPECT_NAME))
+				  hasNodeAttributes = true;
 			  if (aspName.equals("visualProperties")) {
 				  this.usingOldVisualPropertyAspect = true;
 				   e = new MetaDataElement (CyVisualPropertiesElement.ASPECT_NAME, mdeVer);
@@ -525,7 +537,8 @@ public class NetworkQueryManager {
 			  e.setConsistencyGroup(consistencyGrp);
 			  md.add(e);			  
 		  }
-		  
+		  if ( !hasNodeAttributes) 
+			  md.add( new MetaDataElement(NodeAttributesElement.ASPECT_NAME,mdeVer));
 		  return md;
 	}
 	
@@ -544,6 +557,8 @@ public class NetworkQueryManager {
 		//NodeId -> unique neighbor node ids
 		Map<Long,NodeDegreeHelper> nodeNeighborIdTable = new TreeMap<>();
 		
+		Set<Long> queryNodeIds = new HashSet<>(nodeIds);
+
 		usingOldVisualPropertyAspect = false;
 		
 		NdexCXNetworkWriter writer = new NdexCXNetworkWriter(out, true);
@@ -726,7 +741,7 @@ public class NetworkQueryManager {
 
 		
 		writeOtherAspectsForSubnetwork(finalNodes, finalEdgeIds, writer, md, postmd, limitIsOver,
-				"Interconnect query result on network", provenanceRecords);
+				"Interconnect query result on network", provenanceRecords, queryNodeIds);
 		
 		writer.writeMetadata(postmd);
 		writer.end();
@@ -741,6 +756,8 @@ public class NetworkQueryManager {
 		long t1 = Calendar.getInstance().getTimeInMillis();
 		
 		Set<Long> edgeIds = new TreeSet<> ();
+		Set<Long> queryNodeIds = new HashSet<>(nodeIds);
+
 		
 		usingOldVisualPropertyAspect = false;
 		
@@ -824,7 +841,7 @@ public class NetworkQueryManager {
 
 		
 		writeOtherAspectsForSubnetwork(nodeIds, edgeIds, writer, md, postmd, limitIsOver,
-				"Direct query result on network", provenanceRecords);
+				"Direct query result on network", provenanceRecords, queryNodeIds);
 		
 		writer.writeMetadata(postmd);
 		writer.end();

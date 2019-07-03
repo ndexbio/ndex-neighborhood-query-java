@@ -28,6 +28,7 @@ import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.eclipse.jetty.util.log.Log;
+import org.ndexbio.cxio.util.CxConstants;
 import org.ndexbio.model.exceptions.NdexException;
 import org.ndexbio.model.object.SimplePathQuery;
 
@@ -76,18 +77,14 @@ public class MessageResource {
 		
 		Log.getRootLogger().info("Interconnect Query term: " + queryParameters.getSearchString());
 		Log.getRootLogger().info("Interconnect Query edgeLimit: " + queryParameters.getEdgeLimit());
-		Set<Long> nodeIds = new TreeSet<>();
 
 		UUID networkId = UUID.fromString(networkIdStr);
-		try (SingleNetworkSolrIdxManager idxr = new SingleNetworkSolrIdxManager(networkIdStr)) {
-			SolrDocumentList r = idxr.getNodeIdsByQuery(queryParameters.getSearchString(), 1000000);
-			for (SolrDocument d : r) {
-				Object f = d.getFieldValue("id");
-				nodeIds.add(Long.valueOf((String) f));
-			}
+		Set<Long> nodeIds = findStartingNodeIds(networkIdStr, queryParameters.getSearchString());
+		
+		if ( nodeIds.isEmpty()) {
+			return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(CxConstants.EMPTY_NETWORK).build();
 		}
 		
-		Log.getRootLogger().info("Solr returned " + nodeIds.size() + " ids.");
 		PipedInputStream in = new PipedInputStream();
 		 
 		PipedOutputStream out;
@@ -104,6 +101,22 @@ public class MessageResource {
 		return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(in).build();
 		
 
+	}
+	
+	private static Set<Long>  findStartingNodeIds (String networkIdStr, String searchString) throws SolrServerException, IOException, NdexException {
+		Set<Long> nodeIds = new TreeSet<>();
+
+		try (SingleNetworkSolrIdxManager idxr = new SingleNetworkSolrIdxManager(networkIdStr)) {
+			SolrDocumentList r = idxr.getNodeIdsByQuery(searchString, 1000000);
+			for (SolrDocument d : r) {
+				Object f = d.getFieldValue("id");
+				nodeIds.add(Long.valueOf((String) f));
+			}
+		}
+		
+		Log.getRootLogger().info("Solr returned " + nodeIds.size() + " ids.");
+		
+		return nodeIds;
 	}
 	
 	private class InterConnectQueryWriterThread extends Thread {
@@ -153,16 +166,11 @@ public class MessageResource {
 			Log.getRootLogger().info("Neighorhood Query edgeLimit: " + queryParameters.getEdgeLimit());
 			UUID networkId = UUID.fromString(networkIdStr);
 
-			Set<Long> nodeIds = new TreeSet<>();
-
-			try (SingleNetworkSolrIdxManager idxr = new SingleNetworkSolrIdxManager(networkIdStr)) {
-				SolrDocumentList r = idxr.getNodeIdsByQuery(queryParameters.getSearchString(), 1000000);
-				for (SolrDocument d : r) {
-					Object f = d.getFieldValue("id");
-					nodeIds.add(Long.valueOf((String) f));
-				}
+			Set<Long> nodeIds = findStartingNodeIds(networkIdStr, queryParameters.getSearchString());
+			if ( nodeIds.isEmpty()) {
+				return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(CxConstants.EMPTY_NETWORK).build();
 			}
-			Log.getRootLogger().info("Solr returned " + nodeIds.size() + " ids.");
+			
 			PipedInputStream in = new PipedInputStream();
 			 
 			PipedOutputStream out;
