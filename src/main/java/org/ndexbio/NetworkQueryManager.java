@@ -40,6 +40,7 @@ import org.ndexbio.model.cx.NodeSupportLinksElement;
 import org.ndexbio.model.cx.SupportElement;
 import org.ndexbio.model.exceptions.BadRequestException;
 import org.ndexbio.model.object.SimplePathQuery;
+import org.ndexbio.model.tools.NodeDegreeHelper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 
@@ -671,6 +672,7 @@ public class NetworkQueryManager {
 			}
 		}
 		
+		
 		// write extra edges that found between the new neighboring nodes.
 		
 		if (finalNodes.size()>0 && md.getMetaDataElement(EdgesElement.ASPECT_NAME) != null) {
@@ -875,7 +877,7 @@ public class NetworkQueryManager {
 			postmd.add(mde);
 		}
 	}
-	
+/*	
 	private class NodeDegreeHelper {
 		
 		private boolean tobeDeleted;
@@ -912,5 +914,5 @@ public class NetworkQueryManager {
 		public void removeAllEdges() {edgeIds = null;}
 
 	}
-
+*/
 }
