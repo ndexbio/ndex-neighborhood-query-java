@@ -53,6 +53,9 @@ public class NetworkQueryManager {
 	private String netId;
 	private static final Long consistencyGrp = Long.valueOf(1L);
 	private static final String mdeVer = "1.0";
+	private static final String provDerivedFrom = "prov:wasDerivedFrom";
+	private static final String provGeneratedBy = "prov:wasGeneratedBy";
+	private static final String queryNode = "querynode";
 	
 	private static String pathPrefix = "/opt/ndex/data/";
 	private boolean usingOldVisualPropertyAspect;
@@ -209,8 +212,8 @@ public class NetworkQueryManager {
 
 		String queryName = directOnly ? "Adjacent" : "Neighborhood" ;
 		ArrayList<NetworkAttributesElement> provenanceRecords = new ArrayList<> (2);
-		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasDerivedFrom", netId));
-		provenanceRecords.add(new NetworkAttributesElement (null, "prov:wasGeneratedBy",
+		provenanceRecords.add(new NetworkAttributesElement (null, provDerivedFrom, netId));
+		provenanceRecords.add(new NetworkAttributesElement (null, provGeneratedBy,
 				"NDEx "+ queryName + " Query/v1.1 (Depth=" + this.depth +"; Query terms=\""+ this.searchTerms + "\")"));
 		
 		writeOtherAspectsForSubnetwork(nodeIds, edgeIds, writer, md, postmd, limitIsOver,
@@ -227,6 +230,8 @@ public class NetworkQueryManager {
 	private void writeOtherAspectsForSubnetwork(Set<Long> nodeIds, Set<Long> edgeIds, NdexCXNetworkWriter writer,
 			MetaDataCollection md, MetaDataCollection postmd, boolean limitIsOver, String networkNamePrefix,
 			Collection<NetworkAttributesElement> extraNetworkAttributes, Set<Long> queryNodeIds) throws IOException, JsonProcessingException {
+		
+		boolean hasOldQueryNode = false;  // a flag to tell if there were any old queryNode=true attributes in the result nodes.
 		//process node attribute aspect
 		if (  md.getMetaDataElement(NodeAttributesElement.ASPECT_NAME) != null) {
 			writer.startAspectFragment(NodeAttributesElement.ASPECT_NAME);
@@ -235,6 +240,12 @@ public class NetworkQueryManager {
 					while (ei.hasNext()) {
 						NodeAttributesElement nodeAttr = ei.next();
 						if (nodeIds.contains(nodeAttr.getPropertyOf())) {
+							//If the parent network has querynode=true in the result, we rename it to _querynode=true 
+							if ( nodeAttr.getName().equals(queryNode) && nodeAttr.getDataType() == ATTRIBUTE_DATA_TYPE.BOOLEAN
+									&& nodeAttr.getValue().equals("true") ) {
+								hasOldQueryNode = true;
+								writer.writeElement(new NodeAttributesElement(null, nodeAttr.getPropertyOf(), "_" +queryNode, "true", ATTRIBUTE_DATA_TYPE.BOOLEAN));
+							} else
 								writer.writeElement(nodeAttr);
 						}
 					}
@@ -242,7 +253,7 @@ public class NetworkQueryManager {
 			
 			// add the queryNode attribute on starting nodes
 			for (Long nodeId: queryNodeIds) {
-				writer.writeElement( new NodeAttributesElement(null, nodeId,"querynode", "true", ATTRIBUTE_DATA_TYPE.BOOLEAN));
+				writer.writeElement( new NodeAttributesElement(null, nodeId,queryNode, "true", ATTRIBUTE_DATA_TYPE.BOOLEAN));
 			}
 			
 			writer.closeFragment();
@@ -252,6 +263,10 @@ public class NetworkQueryManager {
 			postmd.add(mde);
 		}
 		
+		// if the result has old query nodes, we add a comment in the result network.
+		if ( hasOldQueryNode )
+			extraNetworkAttributes.add(new NetworkAttributesElement(null, "NDEx_Query_Comments", 
+				"All node attributes 'querynode' in your parenent network have been renamed to _querynode in the query result."));
 		//process edge attribute aspect
 		if (md.getMetaDataElement(EdgeAttributesElement.ASPECT_NAME) != null) {
 			writer.startAspectFragment(EdgeAttributesElement.ASPECT_NAME);
@@ -282,9 +297,13 @@ public class NetworkQueryManager {
 			try (AspectIterator<NetworkAttributesElement> ei = new AspectIterator<>(netId,NetworkAttributesElement.ASPECT_NAME, NetworkAttributesElement.class, pathPrefix)) {
 				while (ei.hasNext()) {
 					NetworkAttributesElement attr = ei.next();
-					if (attr.getName().equals("name"))
-						attr.setSingleStringValue(networkNamePrefix + " - " + attr.getValue());
-					writer.writeElement(attr);
+					String attrName = attr.getName();
+					//Strip out the old provenance Info from the network because we are going to inject new ones in.
+					if ( (! attrName.equals(provDerivedFrom)) && (! attrName.equals(provGeneratedBy))) {
+						if (attr.getName().equals("name"))
+							attr.setSingleStringValue(networkNamePrefix + " - " + attr.getValue());
+						writer.writeElement(attr);
+					}
 				}
 			}
 		}

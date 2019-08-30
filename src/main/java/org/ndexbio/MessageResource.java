@@ -31,6 +31,7 @@ import org.eclipse.jetty.util.log.Log;
 import org.ndexbio.cxio.util.CxConstants;
 import org.ndexbio.model.exceptions.NdexException;
 import org.ndexbio.model.object.SimplePathQuery;
+import org.ndexbio.model.tools.SearchUtilities;
 
 @Path("/v1")
 public class MessageResource {
@@ -103,15 +104,11 @@ public class MessageResource {
 
 	}
 	
-	protected static String convertCommaToSpace(String searchString) {
-		return searchString.replaceAll("(,)(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)", " ");
-	}
-	
 	private static Set<Long>  findStartingNodeIds (String networkIdStr, String searchString) throws SolrServerException, IOException, NdexException {
 		Set<Long> nodeIds = new TreeSet<>();
 
 		try (SingleNetworkSolrIdxManager idxr = new SingleNetworkSolrIdxManager(networkIdStr)) {
-			SolrDocumentList r = idxr.getNodeIdsByQuery(convertCommaToSpace(searchString), 1000000);
+			SolrDocumentList r = idxr.getNodeIdsByQuery(SearchUtilities.preprocessSearchTerm(searchString), 1000000);
 			for (SolrDocument d : r) {
 				Object f = d.getFieldValue("id");
 				nodeIds.add(Long.valueOf((String) f));
