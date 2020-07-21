@@ -35,7 +35,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.BaseHttpSolrClient;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocumentList;
@@ -58,7 +60,7 @@ public class SingleNetworkSolrIdxManager implements AutoCloseable{
 		client = new HttpSolrClient.Builder(solrUrl).build();
 	}
 	
-	protected static NdexException convertException(HttpSolrClient.RemoteSolrException e, String core_name) {
+	protected static NdexException convertException(BaseHttpSolrClient.RemoteSolrException e, String core_name) {
 		if (e.code() == 400) {
 			String err = e.getMessage();
 			Pattern p = Pattern.compile("Error from server at .*/" + core_name +": (.*)");
@@ -86,10 +88,10 @@ public class SingleNetworkSolrIdxManager implements AutoCloseable{
 			solrQuery.setRows(30000000);
 		
 		try {
-			QueryResponse rsp = client.query(solrQuery);
+			QueryResponse rsp = client.query(solrQuery, SolrRequest.METHOD.POST);
 			SolrDocumentList dds = rsp.getResults();
 			return dds;
-		} catch (HttpSolrClient.RemoteSolrException e) {
+		} catch (BaseHttpSolrClient.RemoteSolrException e) {
 			throw convertException(e, collectionName);
 		}
 	}
