@@ -80,7 +80,7 @@ public class SingleNetworkSolrIdxManager implements AutoCloseable{
 		
 		solrQuery.setQuery(query).setFields(ID);
     	solrQuery.set("defType", "edismax");
-		solrQuery.set("qf","nodeName represents alias");		
+		solrQuery.set("qf","nodeName represents alias text");		
 		solrQuery.setStart(0);
 		if (limit >0)
 			solrQuery.setRows(limit);
