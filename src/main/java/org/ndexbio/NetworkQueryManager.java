@@ -16,9 +16,18 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 
-
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
+import org.ndexbio.cx2.aspect.element.core.CxAttributeDeclaration;
+import org.ndexbio.cx2.aspect.element.core.CxEdge;
+import org.ndexbio.cx2.aspect.element.core.CxEdgeBypass;
+import org.ndexbio.cx2.aspect.element.core.CxMetadata;
+import org.ndexbio.cx2.aspect.element.core.CxNetworkAttribute;
+import org.ndexbio.cx2.aspect.element.core.CxNode;
+import org.ndexbio.cx2.aspect.element.core.CxNodeBypass;
+import org.ndexbio.cx2.aspect.element.core.CxVisualProperty;
+import org.ndexbio.cx2.aspect.element.core.DeclarationEntry;
+import org.ndexbio.cx2.io.CXWriter;
 import org.ndexbio.cxio.aspects.datamodels.ATTRIBUTE_DATA_TYPE;
 import org.ndexbio.cxio.aspects.datamodels.CyVisualPropertiesElement;
 import org.ndexbio.cxio.aspects.datamodels.EdgeAttributesElement;
@@ -39,6 +48,7 @@ import org.ndexbio.model.cx.NodeCitationLinksElement;
 import org.ndexbio.model.cx.NodeSupportLinksElement;
 import org.ndexbio.model.cx.SupportElement;
 import org.ndexbio.model.exceptions.BadRequestException;
+import org.ndexbio.model.exceptions.NdexException;
 import org.ndexbio.model.object.SimplePathQuery;
 import org.ndexbio.model.tools.NodeDegreeHelper;
 
@@ -56,6 +66,7 @@ public class NetworkQueryManager {
 	private static final String provDerivedFrom = "prov:wasDerivedFrom";
 	private static final String provGeneratedBy = "prov:wasGeneratedBy";
 	private static final String queryNode = "querynode";
+	private static final String edgeLimitExceeded = "EdgeLimitExceeded";
 	
 	private static String pathPrefix = "/opt/ndex/data/";
 	private boolean usingOldVisualPropertyAspect;
@@ -124,7 +135,7 @@ public class NetworkQueryManager {
 									if ( this.errorOverLimit) {
 										writer.closeFragment();
 										writer.endAspectFragment();
-										writer.end(false, "EdgeLimitExceeded");
+										writer.end(false, edgeLimitExceeded);
 										return;
 									}
 									limitIsOver = true;
@@ -188,7 +199,7 @@ public class NetworkQueryManager {
 								if ( this.errorOverLimit) {
 									writer.closeFragment();
 									writer.endAspectFragment();
-									writer.end(false, "EdgeLimitExceeded");
+									writer.end(false, edgeLimitExceeded);
 									return;
 								}
 								limitIsOver = true;
@@ -291,7 +302,7 @@ public class NetworkQueryManager {
 		writer.openFragment();
 
 		if (limitIsOver) {
-			writer.writeElement(new NetworkAttributesElement(null, "EdgeLimitExceeded", "true"));
+			writer.writeElement(new NetworkAttributesElement(null, edgeLimitExceeded, "true"));
 		}
 		if (md.getMetaDataElement(NetworkAttributesElement.ASPECT_NAME) != null) {
 			try (AspectIterator<NetworkAttributesElement> ei = new AspectIterator<>(netId,NetworkAttributesElement.ASPECT_NAME, NetworkAttributesElement.class, pathPrefix)) {
@@ -562,12 +573,32 @@ public class NetworkQueryManager {
 		  return md;
 	}
 	
+	private List<CxMetadata> prepareMetadataCX2() {
+		List<CxMetadata> md = new ArrayList<>();
+		
+		File dir = new File(pathPrefix+netId+"/aspects_cx2");
+		  File[] directoryListing = dir.listFiles();
+		  for (File child : directoryListing) {
+			  String aspName = child.getName();
+			  CxMetadata e = new CxMetadata (aspName);
+			  md.add(e);			  
+		  }
+		  
+		  return md;
+	}
 	
 	public void interConnectQuery(OutputStream out, Set<Long> nodeIds) throws IOException {
 		if (this.depth >=2 ) {
 			oneStepInterConnectQuery(out,nodeIds);
 		} else 
 			directConnectQuery(out,nodeIds);
+	}
+	
+	public void interConnectQueryCX2(OutputStream out, Set<Long> nodeIds) throws IOException, NdexException {
+		if (this.depth >=2 ) {
+			oneStepInterConnectQueryCX2(out,nodeIds);
+		} else 
+			directConnectQueryCX2(out,nodeIds);
 	}
 	
 	private void oneStepInterConnectQuery(OutputStream out, Set<Long> nodeIds ) throws IOException {
@@ -653,7 +684,7 @@ public class NetworkQueryManager {
 		boolean limitIsOver= false;
 		if ( edgeLimit >0 && edgeTable.size() > edgeLimit) {
 			if ( this.errorOverLimit) {
-				writer.end(false, "EdgeLimitExceeded");
+				writer.end(false, edgeLimitExceeded);
 				System.out.println("Wrote the Exceed limit error and return.");
 				return;
 			}
@@ -702,7 +733,7 @@ public class NetworkQueryManager {
 						if ( this.errorOverLimit) {
 							writer.closeFragment();
 							writer.endAspectFragment();
-							writer.end(false, "EdgeLimitExceeded");
+							writer.end(false, edgeLimitExceeded);
 							return;
 						}
 						limitIsOver = true;
@@ -832,7 +863,7 @@ public class NetworkQueryManager {
 							if ( this.errorOverLimit) {
 								writer.closeFragment();
 								writer.endAspectFragment();
-								writer.end(false, "EdgeLimitExceeded");
+								writer.end(false, edgeLimitExceeded);
 								return;
 							}
 							limitIsOver = true;
@@ -896,6 +927,767 @@ public class NetworkQueryManager {
 			postmd.add(mde);
 		}
 	}
+	
+	
+	/**
+	 * Generate a new unique name for the querynode attribute on node
+	 * @param decl
+	 * @return
+	 * @throws NdexException 
+	 */
+	private static String getNewNameForQuerynodeAttr(Map<String,DeclarationEntry> nodeAttrs) throws NdexException {
+		int counter = 1;
+		while ( counter < 3000) {
+			String newAttr = queryNode + "(" + counter + ")";
+			if(!nodeAttrs.containsKey(newAttr))
+				return newAttr;
+		}
+		throw new NdexException("Failed to find new attribute name for queryNode attribute on node.");
+	}
+	
+	/**
+	 * CX2 version of neighborhood query. This function returns writes the result network in CX2 format to the output stream. 
+	 * @param out
+	 * @param nodeIds
+	 * @throws IOException
+	 * @throws NdexException 
+	 */
+	public void neighbourhoodQueryCX2(OutputStream out, Set<Long> nodeIds, boolean flagQueryNodeInResult) throws IOException, NdexException {
+		long t1 = Calendar.getInstance().getTimeInMillis();
+		Set<Long> edgeIds = new TreeSet<> ();
+		usingOldVisualPropertyAspect = false;
+		
+		boolean limitIsOver = false;
+		Set<Long> queryNodeIds = new HashSet<>(nodeIds);
+		String queryName = directOnly ? "Adjacent" : "Neighborhood" ;
+
+		
+		CXWriter writer = new CXWriter(out, true);
+		List<CxMetadata> md = prepareMetadataCX2() ;
+		writer.writeMetadata(md);
+				
+		int cnt = 0;
+		
+		//check if the network has old queryNode column on nodes. null mean no attribute called "querynode" on nodes. 
+		CxAttributeDeclaration decl = getAttrDeclarationFromAspectFile(md);
+        
+		String newQueryNodeAttr = null;
+
+		try {
+			newQueryNodeAttr = renameQueryNodeAttrName(decl,writer);
+		} catch (NdexException e) {
+				writer.printError(e.getMessage());
+				return;
+		}	
+        
+		//prepare networkAttributes and write declaration out;
+		CxNetworkAttribute netAttrs = prepareNetworkAttributesAndWriteOutDeclaration(decl, md,newQueryNodeAttr, writer,queryName);
+		
+		boolean hasEdges = md.stream().anyMatch(m -> m.getName().equals(CxEdge.ASPECT_NAME));
+	
+		if (hasEdges) {
+			
+			Set<Long> startingNodeIds = nodeIds;
+			writer.startAspectFragment(CxEdge.ASPECT_NAME);
+			
+			for (int i = 0; i < depth; i++) {
+				if (limitIsOver) 
+					break;
+				Set<Long> newNodeIds = new TreeSet<> ();
+				String edgeFilePath = pathPrefix + netId + "aspects_cx2/" + CxEdge.ASPECT_NAME;
+				try (AspectIterator<CxEdge> ei = new AspectIterator<>( edgeFilePath, CxEdge.class)) {
+					while (ei.hasNext()) {
+						CxEdge edge = ei.next();
+						if (!edgeIds.contains(edge.getId())) {
+							if (startingNodeIds.contains(edge.getSource())
+									|| startingNodeIds.contains(edge.getTarget())) {
+								cnt ++;
+								if ( edgeLimit > 0 && cnt > edgeLimit) {
+									if ( this.errorOverLimit) {
+										writer.endAspectFragment();
+										writer.printError(edgeLimitExceeded);
+										return;
+									}
+									limitIsOver = true;
+									break;
+								}
+								writer.writeElementInFragment(edge);
+								edgeIds.add(edge.getId());
+								if (!nodeIds.contains(edge.getSource()))
+									newNodeIds.add(edge.getSource());
+								if ( !nodeIds.contains(edge.getTarget()))
+									newNodeIds.add(edge.getTarget());
+							}
+
+						}
+
+					}
+					nodeIds.addAll(newNodeIds);
+					startingNodeIds=newNodeIds;
+				}
+
+			}
+			accLogger.info("Query returned " + cnt + " edges.");
+			writer.endAspectFragment();
+			
+		}
+		
+		accLogger.info ( "done writing out edges.");
+		//write nodes
+		writer.startAspectFragment(CxNode.ASPECT_NAME);
+		try (AspectIterator<CxNode> ei = new AspectIterator<>( pathPrefix + netId + "aspects_cx2/" + CxNode.ASPECT_NAME, CxNode.class)) {
+			while (ei.hasNext()) {
+				CxNode node = ei.next();
+				if (nodeIds.contains(Long.valueOf(node.getId()))) {
+					if ( queryNodeIds.contains(node.getId())) {
+						Map<String,Object> attrs = node.getAttributes();
+					    if (newQueryNodeAttr !=null ) {   // rename querynode to a new attribute name
+					    		Object v = node.getAttributes().remove(queryNode) ;
+					    		attrs.put(newQueryNodeAttr, v);
+					    }
+					    attrs.put(queryNode, true);
+					}
+					writer.writeElementInFragment(node);
+				}
+			}
+		}
+		
+		writer.endAspectFragment();
+/*		if ( nodeIds.size()>0) {
+			MetaDataElement mde1 = new MetaDataElement(NodesElement.ASPECT_NAME,mdeVer);
+			mde1.setElementCount((long)nodeIds.size());
+			mde1.setIdCounter(nodeIds.isEmpty()? 0L : Collections.max(nodeIds));
+			postmd.add(mde1);
+		} */
+		
+		//check if we need to output the full neighborhood.
+		if ( !directOnly && hasEdges) {
+			writer.startAspectFragment(CxEdge.ASPECT_NAME);
+
+			try (AspectIterator<CxEdge> ei = new AspectIterator<>( pathPrefix + netId + "aspects_cx2/" + CxEdge.ASPECT_NAME, CxEdge.class)) {
+				while (ei.hasNext()) {
+					CxEdge edge = ei.next();
+					if ( (!edgeIds.contains(edge.getId())) && nodeIds.contains(edge.getSource())
+								&& nodeIds.contains(edge.getTarget())) {
+							cnt ++;
+							if ( edgeLimit > 0 && cnt > edgeLimit) {
+								if ( this.errorOverLimit) {
+									writer.endAspectFragment();
+									writer.printError(edgeLimitExceeded);
+									return;
+								}
+								limitIsOver = true;
+								break;
+							}
+							writer.writeElementInFragment(edge);
+							edgeIds.add(edge.getId());
+					}
+				}
+			}
+			writer.endAspectFragment();
+		}
+		
+/*		if  (edgeIds.size()>0) {
+			MetaDataElement mde = new MetaDataElement(EdgesElement.ASPECT_NAME,mdeVer);
+			mde.setElementCount((long)edgeIds.size());
+			mde.setIdCounter(edgeIds.isEmpty()? 0L : Collections.max(edgeIds));
+			postmd.add(mde);
+		}
+
+		String queryName = directOnly ? "Adjacent" : "Neighborhood" ;
+		ArrayList<NetworkAttributesElement> provenanceRecords = new ArrayList<> (2);
+		provenanceRecords.add(new NetworkAttributesElement (null, provDerivedFrom, netId));
+		provenanceRecords.add(new NetworkAttributesElement (null, provGeneratedBy,
+				"NDEx "+ queryName + " Query/v1.1 (Depth=" + this.depth +"; Query terms=\""+ this.searchTerms + "\")"));
+*/		
+
+		//finalize network attributes and write them out.
+		if (limitIsOver) {
+			netAttrs.add(edgeLimitExceeded, Boolean.TRUE);
+		}
+		
+		writer.startAspectFragment(CxNetworkAttribute.ASPECT_NAME);
+		writer.writeElementInFragment(netAttrs);
+		writer.endAspectFragment();
+
+		writeOtherAspectsForSubnetworkCX2(nodeIds, edgeIds, writer, limitIsOver,
+				queryName + " query result on network", md);
+		
+		//writer.writeMetadata(postmd);
+		writer.finish();
+		long t2 = Calendar.getInstance().getTimeInMillis();
+
+		accLogger.info("Total " + (t2-t1)/1000f + " seconds. Returned " + edgeIds.size() + " edges and " + nodeIds.size() + " nodes.",
+				new Object[]{});
+	}
+
+	
+	private CxAttributeDeclaration getAttrDeclarationFromAspectFile(List<CxMetadata> md) throws JsonProcessingException, IOException {
+		CxAttributeDeclaration decl= null;
+		if (md.stream().anyMatch(m -> m.getName().equals(CxAttributeDeclaration.ASPECT_NAME))) {
+			try (AspectIterator<CxAttributeDeclaration> ei = new AspectIterator<>(  pathPrefix + netId + "aspects_cx2/" + CxAttributeDeclaration.ASPECT_NAME, CxAttributeDeclaration.class)) {
+				while (ei.hasNext()) {
+				  decl = ei.next();
+				  break;
+				}
+			}
+		}
+		if ( decl == null) {
+			decl = new CxAttributeDeclaration();
+		}	
+		return decl;
+	}
+	
+	private String renameQueryNodeAttrName(CxAttributeDeclaration decl, CXWriter writer) throws NdexException {
+		String newQueryNodeAttr = null;
+		Map<String,DeclarationEntry> nodeAttrs = decl.getAttributesInAspect(CxNode.ASPECT_NAME);	
+		if ( nodeAttrs.containsKey(queryNode)) {
+			DeclarationEntry oldE = nodeAttrs.remove(queryNode);
+			newQueryNodeAttr = getNewNameForQuerynodeAttr(nodeAttrs);
+		    nodeAttrs.put(newQueryNodeAttr, oldE);
+		}
+		nodeAttrs.put(queryNode, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.BOOLEAN,Boolean.FALSE,null));
+	
+        return newQueryNodeAttr;
+	}
+	
+	private CxNetworkAttribute prepareNetworkAttributesAndWriteOutDeclaration(CxAttributeDeclaration decl, 
+			List<CxMetadata> md, String newQueryNodeAttr, CXWriter writer, String queryName) throws JsonProcessingException, IOException, NdexException {
+		decl.addAttributeDeclaration(CxNode.ASPECT_NAME, queryNode, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.BOOLEAN,Boolean.FALSE,null));
+		decl.addAttributeDeclaration(CxNetworkAttribute.ASPECT_NAME, provDerivedFrom, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.STRING,null,null));
+		decl.addAttributeDeclaration(CxNetworkAttribute.ASPECT_NAME, provGeneratedBy, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.STRING,null,null));
+		decl.addAttributeDeclaration(CxNetworkAttribute.ASPECT_NAME, edgeLimitExceeded, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.BOOLEAN,null,null));
+		
+		//prepare networkAttributes
+		CxNetworkAttribute netAttrs = null;
+		if (md.stream().anyMatch(m -> m.getName().equals(CxNetworkAttribute.ASPECT_NAME))) {
+			try (AspectIterator<CxNetworkAttribute> nai = new AspectIterator<>(  pathPrefix + netId + "aspects_cx2/" + CxNetworkAttribute.ASPECT_NAME,
+					CxNetworkAttribute.class)) {
+				while (nai.hasNext()) {
+				  netAttrs = nai.next();
+				  break;	  
+				}
+			} 
+		}
+		if(netAttrs == null)
+			netAttrs = new CxNetworkAttribute();
+
+		//String queryName = directOnly ? "Adjacent" : "Neighborhood" ;
+
+		netAttrs.add(provDerivedFrom, netId.toString());
+		netAttrs.add(provGeneratedBy, "NDEx "+ queryName + " Query/v1.1 (Depth=" + this.depth +"; Query terms=\""+ this.searchTerms + "\")");
+		
+		if (newQueryNodeAttr !=null) {
+			String commentsAttr = "NDEx_Query_Comments";
+			netAttrs.add(commentsAttr, "All node attributes 'querynode' in your parenent network have been renamed to '" + newQueryNodeAttr + "' in the query result.");
+			decl.addAttributeDeclaration(CxNetworkAttribute.ASPECT_NAME, commentsAttr, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.STRING,null,null));
+		}
+		
+		//write out declaration.
+		writer.startAspectFragment(CxAttributeDeclaration.ASPECT_NAME);
+		writer.writeElementInFragment(decl);
+		writer.endAspectFragment();
+		return netAttrs;
+	}
+	
+	
+	private void writeOtherAspectsForSubnetworkCX2(Set<Long> nodeIds, Set<Long> edgeIds, CXWriter writer,
+			 boolean limitIsOver, String networkNamePrefix,  List<CxMetadata> md) throws IOException, JsonProcessingException, NdexException {
+
+		//write out styles
+		if (md.stream().anyMatch( x -> x.getName().equals(CxVisualProperty.ASPECT_NAME))) {
+			writer.startAspectFragment(CxVisualProperty.ASPECT_NAME);
+			try (AspectIterator<CxVisualProperty> it = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" + CxVisualProperty.ASPECT_NAME, CxVisualProperty.class)) {
+				while (it.hasNext()) {
+					writer.writeElementInFragment(it.next());
+				}
+			}
+			writer.endAspectFragment();
+		}	
+		
+		//process bypass aspects
+		if (md.stream().anyMatch( x -> x.getName().equals(CxNodeBypass.ASPECT_NAME))) {
+			writer.startAspectFragment(CxNodeBypass.ASPECT_NAME);
+			try (AspectIterator<CxNodeBypass> it = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" + CxNodeBypass.ASPECT_NAME, CxNodeBypass.class)) {
+				while (it.hasNext()) {
+					CxNodeBypass elmt = it.next();
+					if ( nodeIds.contains(elmt.getId()) ){
+						writer.writeElementInFragment(elmt);
+					}
+				}
+			}
+			writer.endAspectFragment();
+		}	
+		if (md.stream().anyMatch( x -> x.getName().equals(CxEdgeBypass.ASPECT_NAME))) {
+			writer.startAspectFragment(CxEdgeBypass.ASPECT_NAME);
+			try (AspectIterator<CxEdgeBypass> it = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" + CxEdgeBypass.ASPECT_NAME, CxEdgeBypass.class)) {
+				while (it.hasNext()) {
+					CxEdgeBypass elmt = it.next();
+					if ( edgeIds.contains(elmt.getId()) ){
+						writer.writeElementInFragment(elmt);
+					}
+				}
+			}
+			writer.endAspectFragment();
+		}	
+
+		// process function terms
+		
+		if (md.stream().anyMatch( x -> x.getName().equals(FunctionTermElement.ASPECT_NAME))) {
+			writer.startAspectFragment(FunctionTermElement.ASPECT_NAME);
+			try (AspectIterator<FunctionTermElement> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" + FunctionTermElement.ASPECT_NAME, FunctionTermElement.class)) {
+					while (ei.hasNext()) {
+						FunctionTermElement ft = ei.next();
+						if (nodeIds.contains(ft.getNodeID())) {
+								writer.writeCx1ElementInFragment(ft);
+						}
+					}
+			}
+			writer.endAspectFragment();
+		}	
+		
+		
+		Set<Long> citationIds = new TreeSet<> ();
+		
+		//process citation links aspects
+		if (md.stream().anyMatch( x -> x.getName().equals(NodeCitationLinksElement.ASPECT_NAME))) {
+			writer.startAspectFragment(NodeCitationLinksElement.ASPECT_NAME);
+			NodeCitationLinksElement worker = new NodeCitationLinksElement();
+			try (AspectIterator<NodeCitationLinksElement> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" + NodeCitationLinksElement.ASPECT_NAME, NodeCitationLinksElement.class)) {
+					while (ei.hasNext()) {
+						NodeCitationLinksElement ft = ei.next();
+						worker.getSourceIds().clear();
+						for ( Long nid : ft.getSourceIds()) {
+							if ( nodeIds.contains(nid))
+								worker.getSourceIds().add(nid);
+						}
+						if ( worker.getSourceIds().size()>0) {
+							worker.setCitationIds(ft.getCitationIds());
+							writer.writeCx1ElementInFragment(worker);
+							citationIds.addAll(worker.getCitationIds());
+						}	
+					}
+			}
+			writer.endAspectFragment();
+		}	
+				
+		
+		if (md.stream().anyMatch( x -> x.getName().equals(EdgeCitationLinksElement.ASPECT_NAME))) {
+			EdgeCitationLinksElement worker = new EdgeCitationLinksElement();
+			writer.startAspectFragment(EdgeCitationLinksElement.ASPECT_NAME);
+			try (AspectIterator<EdgeCitationLinksElement> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" + EdgeCitationLinksElement.ASPECT_NAME, EdgeCitationLinksElement.class)) {
+					while (ei.hasNext()) {
+						EdgeCitationLinksElement ft = ei.next();
+						for ( Long nid : ft.getSourceIds()) {
+							if ( edgeIds.contains(nid))
+								worker.getSourceIds().add(nid);
+						}
+						if ( worker.getSourceIds().size()>0) {
+							worker.setCitationIds(ft.getCitationIds());
+							writer.writeCx1ElementInFragment(worker);
+							citationIds.addAll(worker.getCitationIds());
+							worker.getSourceIds().clear();
+						}	
+					}
+			}
+			writer.endAspectFragment();
+		}	
+				
+			
+		if( !citationIds.isEmpty()) {
+			long citationCntr = 0;
+			writer.startAspectFragment(CitationElement.ASPECT_NAME);
+			try (AspectIterator<CitationElement> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" + CitationElement.ASPECT_NAME, CitationElement.class)) {
+				while (ei.hasNext()) {
+					CitationElement ft = ei.next();
+					if ( citationIds.contains(ft.getId())) {
+						writer.writeCx1ElementInFragment(ft);
+						if (ft.getId() > citationCntr)
+							citationCntr = ft.getId();
+					}	
+				}	
+			}
+			
+			writer.endAspectFragment();
+		}	
+
+		// support and related aspects
+		Set<Long> supportIds = new TreeSet<> ();
+		
+		//process support links aspects
+		if (md.stream().anyMatch( x -> x.getName().equals(NodeSupportLinksElement.ASPECT_NAME))) {
+			NodeSupportLinksElement worker = new NodeSupportLinksElement();
+			writer.startAspectFragment(NodeSupportLinksElement.ASPECT_NAME);
+			try (AspectIterator<NodeSupportLinksElement> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" + NodeSupportLinksElement.ASPECT_NAME, NodeSupportLinksElement.class)) {
+					while (ei.hasNext()) {
+						NodeSupportLinksElement ft = ei.next();
+						for ( Long nid : ft.getSourceIds()) {
+							if ( nodeIds.contains(nid))
+								worker.getSourceIds().add(nid);
+						}
+						if ( worker.getSourceIds().size()>0) {
+							worker.setSupportIds(ft.getSupportIds());
+							writer.writeCx1ElementInFragment(worker);
+							supportIds.addAll(worker.getSupportIds());
+							worker.getSourceIds().clear();
+						}	
+					}
+			}
+			writer.endAspectFragment();
+		}	
+				
+		
+		if (md.stream().anyMatch( x -> x.getName().equals(EdgeSupportLinksElement.ASPECT_NAME) )) {
+			EdgeSupportLinksElement worker = new EdgeSupportLinksElement();
+			writer.startAspectFragment(EdgeSupportLinksElement.ASPECT_NAME);
+			try (AspectIterator<EdgeSupportLinksElement> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" +EdgeSupportLinksElement.ASPECT_NAME, EdgeSupportLinksElement.class)) {
+					while (ei.hasNext()) {
+						EdgeSupportLinksElement ft = ei.next();
+						for ( Long nid : ft.getSourceIds()) {
+							if ( edgeIds.contains(nid))
+								worker.getSourceIds().add(nid);
+						}
+						if ( worker.getSourceIds().size()>0) {
+							worker.setSupportIds(ft.getSupportIds());
+							writer.writeCx1ElementInFragment(worker);
+							supportIds.addAll(worker.getSupportIds());
+							worker.getSourceIds().clear();
+						}	
+					}
+			}
+			writer.endAspectFragment();
+			
+		}	
+
+				
+		if( !supportIds.isEmpty()) {
+			long supportCntr = 0;
+			writer.startAspectFragment(SupportElement.ASPECT_NAME);
+			try (AspectIterator<SupportElement> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" + SupportElement.ASPECT_NAME, SupportElement.class)) {
+				while (ei.hasNext()) {
+					SupportElement ft = ei.next();
+					if ( supportIds.contains(ft.getId())) {
+						writer.writeCx1ElementInFragment(ft);
+						if ( supportCntr < ft.getId())
+							supportCntr=ft.getId();
+					}	
+				}	
+			}
+			
+			writer.endAspectFragment();
+					
+		}
+	}
+	
+	
+	private void directConnectQueryCX2(OutputStream out, Set<Long> nodeIds ) throws IOException, NdexException {
+		long t1 = Calendar.getInstance().getTimeInMillis();
+		
+		Set<Long> edgeIds = new TreeSet<> ();
+		Set<Long> queryNodeIds = new HashSet<>(nodeIds);
+		String queryName = "Direct";
+
+				
+		CXWriter writer = new CXWriter(out, true);
+		List<CxMetadata> md = prepareMetadataCX2() ;
+		writer.writeMetadata(md);
+		
+		CxAttributeDeclaration decl = getAttrDeclarationFromAspectFile(md);
+        
+		String newQueryNodeAttr = null;
+
+		try {
+			newQueryNodeAttr = renameQueryNodeAttrName(decl,writer);
+		} catch (NdexException e) {
+				writer.printError(e.getMessage());
+				return;
+		}	
+        
+		//prepare networkAttributes and write declaration out;
+		CxNetworkAttribute netAttrs = prepareNetworkAttributesAndWriteOutDeclaration(decl, md,newQueryNodeAttr, writer,queryName);
+	
+		//write nodes
+		int cnt = 0; 
+		writer.startAspectFragment(CxNode.ASPECT_NAME);
+		if (md.stream().anyMatch(x -> x.getName().equals(CxNode.ASPECT_NAME))) {
+			try (AspectIterator<CxNode> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" + CxNode.ASPECT_NAME, CxNode.class)) {
+				while (ei.hasNext()) {
+					CxNode node = ei.next();
+					if (nodeIds.contains(Long.valueOf(node.getId()))) {
+						writer.writeElementInFragment(node);
+						cnt++;
+						if (cnt == nodeIds.size())
+							break;
+					}
+				}
+			}
+		}
+		writer.endAspectFragment();
+	/*	if ( nodeIds.size()>0) {
+			MetaDataElement mde1 = new MetaDataElement(NodesElement.ASPECT_NAME,mdeVer);
+			mde1.setElementCount(Long.valueOf(nodeIds.size()));
+			mde1.setIdCounter(nodeIds.isEmpty()? 0L:Collections.max(nodeIds));
+			postmd.add(mde1);
+		}*/
+		
+		cnt = 0;
+		boolean limitIsOver = false;
+		writer.startAspectFragment(CxEdge.ASPECT_NAME);
+
+		if (md.stream().anyMatch(x -> x.getName().equals(EdgesElement.ASPECT_NAME) )) {
+			try (AspectIterator<CxEdge> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" +CxEdge.ASPECT_NAME, CxEdge.class )) {
+				while (ei.hasNext()) {
+					CxEdge edge = ei.next();					
+					if (nodeIds.contains(edge.getSource()) && nodeIds.contains(edge.getTarget())) {
+						cnt ++;
+						if ( edgeLimit > 0 && cnt > edgeLimit) {
+							if ( this.errorOverLimit) {
+								writer.endAspectFragment();
+								writer.printError( edgeLimitExceeded);
+								return;
+							}
+							limitIsOver = true;
+							break;
+						}
+						writer.writeElementInFragment (edge);
+						edgeIds.add(edge.getId());
+					} 
+				}
+			}
+		}
+		
+		System.out.println( edgeIds.size()  + " edges from directConnection query.");
+		writer.endAspectFragment();
+
+		
+		//finalize network attributes and write them out.
+		if (limitIsOver) {
+			netAttrs.add(edgeLimitExceeded, Boolean.TRUE);
+		}
+		
+		writer.startAspectFragment(CxNetworkAttribute.ASPECT_NAME);
+		writer.writeElementInFragment(netAttrs);
+		writer.endAspectFragment();
+		
+		writeOtherAspectsForSubnetworkCX2(nodeIds, edgeIds, writer, limitIsOver,
+				"Direct query result on network", md);
+		
+		writer.finish();
+		long t2 = Calendar.getInstance().getTimeInMillis();
+
+		accLogger.info("Total " + (t2-t1)/1000f + " seconds. Returned " + edgeIds.size() + " edges and " +
+		    nodeIds.size() + " nodes.",
+				new Object[]{});
+	}
+
+	private void oneStepInterConnectQueryCX2(OutputStream out, Set<Long> nodeIds ) throws IOException, NdexException {
+		long t1 = Calendar.getInstance().getTimeInMillis();
+		Map<Long, CxEdge> edgeTable = new TreeMap<> ();
+		String queryName = "Interconnect";
+		
+		//NodeId -> unique neighbor node ids
+		Map<Long,NodeDegreeHelper> nodeNeighborIdTable = new TreeMap<>();
+		
+		Set<Long> queryNodeIds = new HashSet<>(nodeIds);
+		
+		CXWriter writer = new CXWriter(out, true);
+		List<CxMetadata> md = prepareMetadataCX2() ;
+		writer.writeMetadata(md);
+	
+		//check if the network has old queryNode column on nodes. null mean no attribute called "querynode" on nodes. 
+		CxAttributeDeclaration decl = getAttrDeclarationFromAspectFile(md);
+        
+		String newQueryNodeAttr = null;
+
+		try {
+			newQueryNodeAttr = renameQueryNodeAttrName(decl,writer);
+		} catch (NdexException e) {
+				writer.printError(e.getMessage());
+				return;
+		}	
+        
+		//prepare networkAttributes and write declaration out;
+		CxNetworkAttribute netAttrs = prepareNetworkAttributesAndWriteOutDeclaration(decl, md,newQueryNodeAttr, writer,queryName);
+			
+		boolean hasEdges = md.stream().anyMatch(x->x.getName().equals(CxEdge.ASPECT_NAME));
+		if (hasEdges) {
+			try (AspectIterator<CxEdge> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" +CxEdge.ASPECT_NAME, CxEdge.class )) {
+				while (ei.hasNext()) {
+					CxEdge edge = ei.next();					
+					if (nodeIds.contains(edge.getSource())) {
+						edgeTable.put(edge.getId(), edge);
+						if ( ! nodeIds.contains(edge.getTarget())) {
+							NodeDegreeHelper h = nodeNeighborIdTable.get(edge.getTarget());
+							if (h != null && h.isToBeDeleted()) {
+								if (h.getNodeId().equals(edge.getSource())) {
+									h.addEdge(edge.getId());
+								} else {
+									h.setToBeDeleted(false);
+									h.removeAllEdges();
+								}
+							} else if ( h == null) {
+								NodeDegreeHelper newHelper = new NodeDegreeHelper(edge.getSource(), edge.getId());
+								nodeNeighborIdTable.put(edge.getTarget(), newHelper);
+							}
+						}
+					} else if (nodeIds.contains(edge.getTarget())) {
+//						writer.writeElement(edge);
+						edgeTable.put(edge.getId(), edge);
+						if ( ! nodeIds.contains(edge.getSource())) {
+							NodeDegreeHelper h = nodeNeighborIdTable.get(edge.getSource());
+						
+							if (h != null && h.isToBeDeleted() ) {
+								if (h.getNodeId().equals(edge.getTarget())) {
+									h.addEdge(edge.getId());
+								} else {
+									h.setToBeDeleted(false);
+									h.removeAllEdges();
+								}
+							} else if ( h == null) {
+								NodeDegreeHelper newHelper = new NodeDegreeHelper(edge.getTarget(), edge.getId());
+								nodeNeighborIdTable.put(edge.getSource(), newHelper);
+							}
+						}
+					}
+
+				}
+			}
+		}
+		
+		System.out.println( edgeTable.size()  + " edges from 2-step interconnect query.");
+		//trim the nodes that only connect to one starting nodes.
+		Set<Long> finalNodes = new TreeSet<>();
+		for (Map.Entry<Long, NodeDegreeHelper> e : nodeNeighborIdTable.entrySet()) {
+			NodeDegreeHelper h = e.getValue();
+			if ( h.isToBeDeleted()) {
+				for ( Long edgeId : h.getEdgeIds())
+					edgeTable.remove( edgeId);				
+			} else {
+				finalNodes.add(e.getKey());
+			}
+		}
+		
+		System.out.println( edgeTable.size()  + " edges after trim.");
+		
+		boolean limitIsOver= false;
+		if ( edgeLimit >0 && edgeTable.size() > edgeLimit) {
+			if ( this.errorOverLimit) {
+				writer.printError(edgeLimitExceeded);
+				System.out.println("Wrote the Exceed limit error and return.");
+				return;
+			}
+			limitIsOver = true;
+			//redo the edges and nodes
+			finalNodes.clear();
+			int i = 0;
+			System.out.println("Redo edges and nodes.");
+
+			Map<Long,CxEdge> newTable = new HashMap<>(edgeTable.size());
+			for (Map.Entry<Long,CxEdge> entry :edgeTable.entrySet()) { 
+				if (i >= edgeLimit )
+					break;
+				i++;	
+				newTable.put(entry.getKey(), entry.getValue());
+				finalNodes.add(entry.getValue().getSource());
+				finalNodes.add(entry.getValue().getTarget());
+			}
+			edgeTable = newTable;
+		}
+	
+		System.out.println("Start writing edges.");
+
+		// write edge aspect 
+		writer.startAspectFragment(EdgesElement.ASPECT_NAME);
+
+		Set<Long> finalEdgeIds = new TreeSet<> ();
+		
+		// write the edges in the table first
+		if ( edgeTable.size() > 0 ) {
+			for (CxEdge e : edgeTable.values()) {
+				writer.writeElementInFragment(e);
+				finalEdgeIds.add(e.getId());	
+			}
+		}
+		
+		
+		// write extra edges that found between the new neighboring nodes.
+		
+		if (finalNodes.size()>0 && hasEdges) {
+			try (AspectIterator<CxEdge> ei = new AspectIterator<>(
+					pathPrefix + netId + "aspects_cx2/" +CxEdge.ASPECT_NAME, CxEdge.class )) {
+				while ( ei.hasNext()) {
+					if ( edgeLimit > 0 &&(finalEdgeIds.size() > edgeLimit) ) {
+						if ( this.errorOverLimit) {
+							writer.endAspectFragment();
+							writer.printError(edgeLimitExceeded);
+							return;
+						}
+						limitIsOver = true;
+						break;
+					}
+					
+					CxEdge edge = ei.next();					
+					if ((!finalEdgeIds.contains( edge.getId())) && 
+							finalNodes.contains(edge.getSource()) && finalNodes.contains(edge.getTarget())) {
+						writer.writeElementInFragment(edge);
+						finalEdgeIds.add(edge.getId());
+					}
+				}	
+			}
+		}	
+		
+		writer.endAspectFragment();
+
+		System.out.println ( "done writing out edges.");
+
+		finalNodes.addAll(nodeIds);
+		
+		//write nodes
+		writer.startAspectFragment(CxNode.ASPECT_NAME);
+		try (AspectIterator<CxNode> ei = new AspectIterator<>(
+				pathPrefix + netId + "aspects_cx2/" +CxNode.ASPECT_NAME, CxNode.class)) {
+			while (ei.hasNext()) {
+				CxNode node = ei.next();
+				if (finalNodes.contains(Long.valueOf(node.getId()))) {
+						writer.writeElementInFragment(node);
+				}
+			}
+		}
+		writer.endAspectFragment();
+		
+		//finalize network attributes and write them out.
+		if (limitIsOver) {
+			netAttrs.add(edgeLimitExceeded, Boolean.TRUE);
+		}
+		
+		writer.startAspectFragment(CxNetworkAttribute.ASPECT_NAME);
+		writer.writeElementInFragment(netAttrs);
+		writer.endAspectFragment();
+		
+		writeOtherAspectsForSubnetworkCX2(finalNodes, finalEdgeIds, writer,limitIsOver,
+				"Interconnect query result on network", md);
+		
+		writer.finish();
+		long t2 = Calendar.getInstance().getTimeInMillis();
+
+	//	System ("Done - " + (t2-t1)/1000f + " seconds.");
+		accLogger.info("Total " + (t2-t1)/1000f + " seconds. Returned " + finalEdgeIds.size() + " edges and " + finalNodes.size() + " nodes.",
+				new Object[]{});
+	}
+	
 /*	
 	private class NodeDegreeHelper {
 		
