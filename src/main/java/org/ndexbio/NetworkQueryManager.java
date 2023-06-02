@@ -27,6 +27,7 @@ import org.ndexbio.cx2.aspect.element.core.CxNode;
 import org.ndexbio.cx2.aspect.element.core.CxNodeBypass;
 import org.ndexbio.cx2.aspect.element.core.CxVisualProperty;
 import org.ndexbio.cx2.aspect.element.core.DeclarationEntry;
+import org.ndexbio.cx2.aspect.element.cytoscape.VisualEditorProperties;
 import org.ndexbio.cx2.io.CXWriter;
 import org.ndexbio.cxio.aspects.datamodels.ATTRIBUTE_DATA_TYPE;
 import org.ndexbio.cxio.aspects.datamodels.CyVisualPropertiesElement;
@@ -1153,10 +1154,22 @@ public class NetworkQueryManager {
 	
 	private CxNetworkAttribute prepareNetworkAttributesAndWriteOutDeclaration(CxAttributeDeclaration decl, 
 			List<CxMetadata> md, String newQueryNodeAttr, CXWriter writer, String queryName) throws JsonProcessingException, IOException, NdexException {
+	
+		Map<String,DeclarationEntry> netAttrDecl = decl.getAttributesInAspect(CxNetworkAttribute.ASPECT_NAME);
+		if ( netAttrDecl == null) {
+			netAttrDecl = new HashMap<>();
+			decl.add(CxNetworkAttribute.ASPECT_NAME, netAttrDecl);
+		}
+        
+		if (!netAttrDecl.containsKey(CxNetworkAttribute.nameAttribute)) {
+			netAttrDecl.put(CxNetworkAttribute.nameAttribute, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.STRING,null,null));
+		}
+
+		
 		decl.addAttributeDeclaration(CxNode.ASPECT_NAME, queryNode, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.BOOLEAN,Boolean.FALSE,null));
-		decl.addAttributeDeclaration(CxNetworkAttribute.ASPECT_NAME, provDerivedFrom, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.STRING,null,null));
-		decl.addAttributeDeclaration(CxNetworkAttribute.ASPECT_NAME, provGeneratedBy, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.STRING,null,null));
-		decl.addAttributeDeclaration(CxNetworkAttribute.ASPECT_NAME, edgeLimitExceeded, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.BOOLEAN,null,null));
+		netAttrDecl.put(provDerivedFrom, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.STRING,null,null));
+		netAttrDecl.put(provGeneratedBy, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.STRING,null,null));
+		netAttrDecl.put(edgeLimitExceeded, new DeclarationEntry(ATTRIBUTE_DATA_TYPE.BOOLEAN,null,null));
 		
 		//prepare networkAttributes
 		CxNetworkAttribute netAttrs = null;
@@ -1174,8 +1187,14 @@ public class NetworkQueryManager {
 
 		//String queryName = directOnly ? "Adjacent" : "Neighborhood" ;
 
+		String oldname = netAttrs.getNetworkName();
+        if (oldname == null)
+        	oldname = "";
+        netAttrs.add(CxNetworkAttribute.nameAttribute, queryName + " query on network - "+ oldname);
+		
 		netAttrs.add(provDerivedFrom, netId.toString());
-		netAttrs.add(provGeneratedBy, "NDEx "+ queryName + " Query/v1.1 (Depth=" + this.depth +"; Query terms=\""+ this.searchTerms + "\")");
+		netAttrs.add(provGeneratedBy, "NDEx "+ queryName + " Query/v1.1 (Depth=" + this.depth +
+				"; Query terms=\""+ (this.searchTerms != null?this.searchTerms:"") + "\")");
 		
 		if (newQueryNodeAttr !=null) {
 			String commentsAttr = "NDEx_Query_Comments";
@@ -1234,6 +1253,12 @@ public class NetworkQueryManager {
 			writer.endAspectFragment();
 		}	
 
+		if ( md.stream().anyMatch(x -> x.getName().equals(VisualEditorProperties.ASPECT_NAME))) {
+			writer.writeAspectFromAspectFile(VisualEditorProperties.ASPECT_NAME, 
+					pathPrefix + netId + "/aspects_cx2/" + VisualEditorProperties.ASPECT_NAME);
+			
+		}
+		
 		// process function terms
 		
 		if (md.stream().anyMatch( x -> x.getName().equals(FunctionTermElement.ASPECT_NAME))) {
@@ -1403,7 +1428,7 @@ public class NetworkQueryManager {
 		writer.writeMetadata(md);
 		
 		CxAttributeDeclaration decl = getAttrDeclarationFromAspectFile(md);
-        
+
 		String newQueryNodeAttr = null;
 
 		try {
