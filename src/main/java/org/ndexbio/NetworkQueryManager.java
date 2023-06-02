@@ -994,7 +994,7 @@ public class NetworkQueryManager {
 				if (limitIsOver) 
 					break;
 				Set<Long> newNodeIds = new TreeSet<> ();
-				String edgeFilePath = pathPrefix + netId + "aspects_cx2/" + CxEdge.ASPECT_NAME;
+				String edgeFilePath = pathPrefix + netId + "/aspects_cx2/" + CxEdge.ASPECT_NAME;
 				try (AspectIterator<CxEdge> ei = new AspectIterator<>( edgeFilePath, CxEdge.class)) {
 					while (ei.hasNext()) {
 						CxEdge edge = ei.next();
@@ -1035,7 +1035,7 @@ public class NetworkQueryManager {
 		accLogger.info ( "done writing out edges.");
 		//write nodes
 		writer.startAspectFragment(CxNode.ASPECT_NAME);
-		try (AspectIterator<CxNode> ei = new AspectIterator<>( pathPrefix + netId + "aspects_cx2/" + CxNode.ASPECT_NAME, CxNode.class)) {
+		try (AspectIterator<CxNode> ei = new AspectIterator<>( pathPrefix + netId + "/aspects_cx2/" + CxNode.ASPECT_NAME, CxNode.class)) {
 			while (ei.hasNext()) {
 				CxNode node = ei.next();
 				if (nodeIds.contains(Long.valueOf(node.getId()))) {
@@ -1064,7 +1064,7 @@ public class NetworkQueryManager {
 		if ( !directOnly && hasEdges) {
 			writer.startAspectFragment(CxEdge.ASPECT_NAME);
 
-			try (AspectIterator<CxEdge> ei = new AspectIterator<>( pathPrefix + netId + "aspects_cx2/" + CxEdge.ASPECT_NAME, CxEdge.class)) {
+			try (AspectIterator<CxEdge> ei = new AspectIterator<>( pathPrefix + netId + "/aspects_cx2/" + CxEdge.ASPECT_NAME, CxEdge.class)) {
 				while (ei.hasNext()) {
 					CxEdge edge = ei.next();
 					if ( (!edgeIds.contains(edge.getId())) && nodeIds.contains(edge.getSource())
@@ -1125,7 +1125,7 @@ public class NetworkQueryManager {
 	private CxAttributeDeclaration getAttrDeclarationFromAspectFile(List<CxMetadata> md) throws JsonProcessingException, IOException {
 		CxAttributeDeclaration decl= null;
 		if (md.stream().anyMatch(m -> m.getName().equals(CxAttributeDeclaration.ASPECT_NAME))) {
-			try (AspectIterator<CxAttributeDeclaration> ei = new AspectIterator<>(  pathPrefix + netId + "aspects_cx2/" + CxAttributeDeclaration.ASPECT_NAME, CxAttributeDeclaration.class)) {
+			try (AspectIterator<CxAttributeDeclaration> ei = new AspectIterator<>(  pathPrefix + netId + "/aspects_cx2/" + CxAttributeDeclaration.ASPECT_NAME, CxAttributeDeclaration.class)) {
 				while (ei.hasNext()) {
 				  decl = ei.next();
 				  break;
@@ -1161,7 +1161,7 @@ public class NetworkQueryManager {
 		//prepare networkAttributes
 		CxNetworkAttribute netAttrs = null;
 		if (md.stream().anyMatch(m -> m.getName().equals(CxNetworkAttribute.ASPECT_NAME))) {
-			try (AspectIterator<CxNetworkAttribute> nai = new AspectIterator<>(  pathPrefix + netId + "aspects_cx2/" + CxNetworkAttribute.ASPECT_NAME,
+			try (AspectIterator<CxNetworkAttribute> nai = new AspectIterator<>(  pathPrefix + netId + "/aspects_cx2/" + CxNetworkAttribute.ASPECT_NAME,
 					CxNetworkAttribute.class)) {
 				while (nai.hasNext()) {
 				  netAttrs = nai.next();
@@ -1198,7 +1198,7 @@ public class NetworkQueryManager {
 		if (md.stream().anyMatch( x -> x.getName().equals(CxVisualProperty.ASPECT_NAME))) {
 			writer.startAspectFragment(CxVisualProperty.ASPECT_NAME);
 			try (AspectIterator<CxVisualProperty> it = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" + CxVisualProperty.ASPECT_NAME, CxVisualProperty.class)) {
+					pathPrefix + netId + "/aspects_cx2/" + CxVisualProperty.ASPECT_NAME, CxVisualProperty.class)) {
 				while (it.hasNext()) {
 					writer.writeElementInFragment(it.next());
 				}
@@ -1210,7 +1210,7 @@ public class NetworkQueryManager {
 		if (md.stream().anyMatch( x -> x.getName().equals(CxNodeBypass.ASPECT_NAME))) {
 			writer.startAspectFragment(CxNodeBypass.ASPECT_NAME);
 			try (AspectIterator<CxNodeBypass> it = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" + CxNodeBypass.ASPECT_NAME, CxNodeBypass.class)) {
+					pathPrefix + netId + "/aspects_cx2/" + CxNodeBypass.ASPECT_NAME, CxNodeBypass.class)) {
 				while (it.hasNext()) {
 					CxNodeBypass elmt = it.next();
 					if ( nodeIds.contains(elmt.getId()) ){
@@ -1223,7 +1223,7 @@ public class NetworkQueryManager {
 		if (md.stream().anyMatch( x -> x.getName().equals(CxEdgeBypass.ASPECT_NAME))) {
 			writer.startAspectFragment(CxEdgeBypass.ASPECT_NAME);
 			try (AspectIterator<CxEdgeBypass> it = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" + CxEdgeBypass.ASPECT_NAME, CxEdgeBypass.class)) {
+					pathPrefix + netId + "/aspects_cx2/" + CxEdgeBypass.ASPECT_NAME, CxEdgeBypass.class)) {
 				while (it.hasNext()) {
 					CxEdgeBypass elmt = it.next();
 					if ( edgeIds.contains(elmt.getId()) ){
@@ -1239,7 +1239,7 @@ public class NetworkQueryManager {
 		if (md.stream().anyMatch( x -> x.getName().equals(FunctionTermElement.ASPECT_NAME))) {
 			writer.startAspectFragment(FunctionTermElement.ASPECT_NAME);
 			try (AspectIterator<FunctionTermElement> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" + FunctionTermElement.ASPECT_NAME, FunctionTermElement.class)) {
+					pathPrefix + netId + "/aspects_cx2/" + FunctionTermElement.ASPECT_NAME, FunctionTermElement.class)) {
 					while (ei.hasNext()) {
 						FunctionTermElement ft = ei.next();
 						if (nodeIds.contains(ft.getNodeID())) {
@@ -1258,7 +1258,7 @@ public class NetworkQueryManager {
 			writer.startAspectFragment(NodeCitationLinksElement.ASPECT_NAME);
 			NodeCitationLinksElement worker = new NodeCitationLinksElement();
 			try (AspectIterator<NodeCitationLinksElement> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" + NodeCitationLinksElement.ASPECT_NAME, NodeCitationLinksElement.class)) {
+					pathPrefix + netId + "/aspects_cx2/" + NodeCitationLinksElement.ASPECT_NAME, NodeCitationLinksElement.class)) {
 					while (ei.hasNext()) {
 						NodeCitationLinksElement ft = ei.next();
 						worker.getSourceIds().clear();
@@ -1281,7 +1281,7 @@ public class NetworkQueryManager {
 			EdgeCitationLinksElement worker = new EdgeCitationLinksElement();
 			writer.startAspectFragment(EdgeCitationLinksElement.ASPECT_NAME);
 			try (AspectIterator<EdgeCitationLinksElement> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" + EdgeCitationLinksElement.ASPECT_NAME, EdgeCitationLinksElement.class)) {
+					pathPrefix + netId + "/aspects_cx2/" + EdgeCitationLinksElement.ASPECT_NAME, EdgeCitationLinksElement.class)) {
 					while (ei.hasNext()) {
 						EdgeCitationLinksElement ft = ei.next();
 						for ( Long nid : ft.getSourceIds()) {
@@ -1304,7 +1304,7 @@ public class NetworkQueryManager {
 			long citationCntr = 0;
 			writer.startAspectFragment(CitationElement.ASPECT_NAME);
 			try (AspectIterator<CitationElement> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" + CitationElement.ASPECT_NAME, CitationElement.class)) {
+					pathPrefix + netId + "/aspects_cx2/" + CitationElement.ASPECT_NAME, CitationElement.class)) {
 				while (ei.hasNext()) {
 					CitationElement ft = ei.next();
 					if ( citationIds.contains(ft.getId())) {
@@ -1326,7 +1326,7 @@ public class NetworkQueryManager {
 			NodeSupportLinksElement worker = new NodeSupportLinksElement();
 			writer.startAspectFragment(NodeSupportLinksElement.ASPECT_NAME);
 			try (AspectIterator<NodeSupportLinksElement> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" + NodeSupportLinksElement.ASPECT_NAME, NodeSupportLinksElement.class)) {
+					pathPrefix + netId + "/spects_cx2/" + NodeSupportLinksElement.ASPECT_NAME, NodeSupportLinksElement.class)) {
 					while (ei.hasNext()) {
 						NodeSupportLinksElement ft = ei.next();
 						for ( Long nid : ft.getSourceIds()) {
@@ -1349,7 +1349,7 @@ public class NetworkQueryManager {
 			EdgeSupportLinksElement worker = new EdgeSupportLinksElement();
 			writer.startAspectFragment(EdgeSupportLinksElement.ASPECT_NAME);
 			try (AspectIterator<EdgeSupportLinksElement> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" +EdgeSupportLinksElement.ASPECT_NAME, EdgeSupportLinksElement.class)) {
+					pathPrefix + netId + "/aspects_cx2/" +EdgeSupportLinksElement.ASPECT_NAME, EdgeSupportLinksElement.class)) {
 					while (ei.hasNext()) {
 						EdgeSupportLinksElement ft = ei.next();
 						for ( Long nid : ft.getSourceIds()) {
@@ -1373,7 +1373,7 @@ public class NetworkQueryManager {
 			long supportCntr = 0;
 			writer.startAspectFragment(SupportElement.ASPECT_NAME);
 			try (AspectIterator<SupportElement> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" + SupportElement.ASPECT_NAME, SupportElement.class)) {
+					pathPrefix + netId + "/aspects_cx2/" + SupportElement.ASPECT_NAME, SupportElement.class)) {
 				while (ei.hasNext()) {
 					SupportElement ft = ei.next();
 					if ( supportIds.contains(ft.getId())) {
@@ -1421,7 +1421,7 @@ public class NetworkQueryManager {
 		writer.startAspectFragment(CxNode.ASPECT_NAME);
 		if (md.stream().anyMatch(x -> x.getName().equals(CxNode.ASPECT_NAME))) {
 			try (AspectIterator<CxNode> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" + CxNode.ASPECT_NAME, CxNode.class)) {
+					pathPrefix + netId + "/aspects_cx2/" + CxNode.ASPECT_NAME, CxNode.class)) {
 				while (ei.hasNext()) {
 					CxNode node = ei.next();
 					if (nodeIds.contains(Long.valueOf(node.getId()))) {
@@ -1447,7 +1447,7 @@ public class NetworkQueryManager {
 
 		if (md.stream().anyMatch(x -> x.getName().equals(EdgesElement.ASPECT_NAME) )) {
 			try (AspectIterator<CxEdge> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" +CxEdge.ASPECT_NAME, CxEdge.class )) {
+					pathPrefix + netId + "/aspects_cx2/" +CxEdge.ASPECT_NAME, CxEdge.class )) {
 				while (ei.hasNext()) {
 					CxEdge edge = ei.next();					
 					if (nodeIds.contains(edge.getSource()) && nodeIds.contains(edge.getTarget())) {
@@ -1524,7 +1524,7 @@ public class NetworkQueryManager {
 		boolean hasEdges = md.stream().anyMatch(x->x.getName().equals(CxEdge.ASPECT_NAME));
 		if (hasEdges) {
 			try (AspectIterator<CxEdge> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" +CxEdge.ASPECT_NAME, CxEdge.class )) {
+					pathPrefix + netId + "/aspects_cx2/" +CxEdge.ASPECT_NAME, CxEdge.class )) {
 				while (ei.hasNext()) {
 					CxEdge edge = ei.next();					
 					if (nodeIds.contains(edge.getSource())) {
@@ -1627,7 +1627,7 @@ public class NetworkQueryManager {
 		
 		if (finalNodes.size()>0 && hasEdges) {
 			try (AspectIterator<CxEdge> ei = new AspectIterator<>(
-					pathPrefix + netId + "aspects_cx2/" +CxEdge.ASPECT_NAME, CxEdge.class )) {
+					pathPrefix + netId + "/aspects_cx2/" +CxEdge.ASPECT_NAME, CxEdge.class )) {
 				while ( ei.hasNext()) {
 					if ( edgeLimit > 0 &&(finalEdgeIds.size() > edgeLimit) ) {
 						if ( this.errorOverLimit) {
@@ -1658,7 +1658,7 @@ public class NetworkQueryManager {
 		//write nodes
 		writer.startAspectFragment(CxNode.ASPECT_NAME);
 		try (AspectIterator<CxNode> ei = new AspectIterator<>(
-				pathPrefix + netId + "aspects_cx2/" +CxNode.ASPECT_NAME, CxNode.class)) {
+				pathPrefix + netId + "/aspects_cx2/" +CxNode.ASPECT_NAME, CxNode.class)) {
 			while (ei.hasNext()) {
 				CxNode node = ei.next();
 				if (finalNodes.contains(Long.valueOf(node.getId()))) {

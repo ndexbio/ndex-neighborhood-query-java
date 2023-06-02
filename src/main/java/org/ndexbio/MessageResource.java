@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -83,7 +84,9 @@ public class MessageResource {
 		Log.getRootLogger().info("Interconnect Query edgeLimit: " + queryParameters.getEdgeLimit());
 
 		UUID networkId = UUID.fromString(networkIdStr);
-		Set<Long> nodeIds = findStartingNodeIds(networkIdStr, queryParameters.getSearchString());
+		Set<Long> nodeIds = queryParameters.getNodeIds() == null ?  
+				findStartingNodeIds(networkIdStr, queryParameters.getSearchString()) : 
+					new HashSet<>(queryParameters.getNodeIds());
 		
 		if ( nodeIds.isEmpty()) {
 			return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(CxConstants.EMPTY_NETWORK).build();
@@ -176,7 +179,10 @@ public class MessageResource {
 			Log.getRootLogger().info("Neighorhood Query edgeLimit: " + queryParameters.getEdgeLimit());
 			UUID networkId = UUID.fromString(networkIdStr);
 
-			Set<Long> nodeIds = findStartingNodeIds(networkIdStr, queryParameters.getSearchString());
+			Set<Long> nodeIds = queryParameters.getNodeIds() == null ?  
+					findStartingNodeIds(networkIdStr, queryParameters.getSearchString()) : 
+						new HashSet<>(queryParameters.getNodeIds());
+			
 			if ( nodeIds.isEmpty()) {
 				return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(CxConstants.EMPTY_NETWORK).build();
 			}
