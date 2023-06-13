@@ -50,7 +50,9 @@ import org.ndexbio.model.cx.NodeSupportLinksElement;
 import org.ndexbio.model.cx.SupportElement;
 import org.ndexbio.model.exceptions.BadRequestException;
 import org.ndexbio.model.exceptions.NdexException;
+import org.ndexbio.model.network.query.FilterCriterion;
 import org.ndexbio.model.object.SimplePathQuery;
+import org.ndexbio.model.tools.EdgeFilter;
 import org.ndexbio.model.tools.NodeDegreeHelper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -68,6 +70,8 @@ public class NetworkQueryManager {
 	private static final String provGeneratedBy = "prov:wasGeneratedBy";
 	private static final String queryNode = "querynode";
 	private static final String edgeLimitExceeded = "EdgeLimitExceeded";
+	
+	private static final String parentNetworkModificationTime = "parentNetworkModificationTime";
 	
 	private static String pathPrefix = "/opt/ndex/data/";
 	private boolean usingOldVisualPropertyAspect;
@@ -577,14 +581,20 @@ public class NetworkQueryManager {
 	private List<CxMetadata> prepareMetadataCX2() {
 		List<CxMetadata> md = new ArrayList<>();
 		
+		boolean hasNetworkAttributes = false;
+		
 		File dir = new File(pathPrefix+netId+"/aspects_cx2");
 		  File[] directoryListing = dir.listFiles();
 		  for (File child : directoryListing) {
 			  String aspName = child.getName();
 			  CxMetadata e = new CxMetadata (aspName);
+			  if (aspName.equals(CxNetworkAttribute.ASPECT_NAME))
+				  hasNetworkAttributes = true;
 			  md.add(e);			  
 		  }
 		  
+		  if(!hasNetworkAttributes) 
+			  md.add(new CxMetadata(CxNetworkAttribute.ASPECT_NAME));
 		  return md;
 	}
 	
@@ -1713,6 +1723,168 @@ public class NetworkQueryManager {
 				new Object[]{});
 	}
 	
+	
+	/**
+	 * Query function for Hiview. This is a special direct query. It only add one extra network attribute to the result network, 
+	 * the parentNetwork's last modification time. It doesn't add the query node attribute. It supports filter criteria so it can 
+	 * rank and filter edges in query results.   
+	 * @param out
+	 * @param nodeIds
+	 * @param parentNetworkTimestamp
+	 * @throws IOException
+	 * @throws NdexException
+	 */
+	public void filteredDirectQueryCX2(OutputStream out, Set<Long> nodeIds, FilterCriterion edgeFilterCriterion, long parentNetworkTimestamp,
+			int edgeLimit, String order ) throws IOException, NdexException {
+		long t1 = Calendar.getInstance().getTimeInMillis();
+		
+		Set<Long> edgeIds = new TreeSet<> ();
+				
+		CXWriter writer = new CXWriter(out, true);
+		List<CxMetadata> md = prepareMetadataCX2() ;
+		writer.writeMetadata(md);
+		
+		CxAttributeDeclaration decl = getAttrDeclarationFromAspectFile(md);
+        
+		//prepare networkAttributes and write declaration out;
+		decl.addAttributeDeclaration(CxNetworkAttribute.ASPECT_NAME, parentNetworkModificationTime, new  DeclarationEntry(ATTRIBUTE_DATA_TYPE.LONG,null,null));
+
+		//prepare networkAttributes
+		CxNetworkAttribute netAttrs = null;
+		if (md.stream().anyMatch(m -> m.getName().equals(CxNetworkAttribute.ASPECT_NAME))) {
+			try (AspectIterator<CxNetworkAttribute> nai = new AspectIterator<>(
+					pathPrefix + netId + "/aspects_cx2/" + CxNetworkAttribute.ASPECT_NAME, CxNetworkAttribute.class)) {
+				while (nai.hasNext()) {
+					netAttrs = nai.next();
+					break;
+				}
+			}
+		}
+		if (netAttrs == null)
+			netAttrs = new CxNetworkAttribute();
+		
+		netAttrs.add(parentNetworkModificationTime, parentNetworkTimestamp);
+		
+		writer.startAspectFragment(CxNetworkAttribute.ASPECT_NAME);
+		writer.writeElementInFragment(netAttrs);
+		writer.endAspectFragment();
+		
+		//write nodes
+		int cnt = 0; 
+		writer.startAspectFragment(CxNode.ASPECT_NAME);
+		if (md.stream().anyMatch(x -> x.getName().equals(CxNode.ASPECT_NAME))) {
+			try (AspectIterator<CxNode> ei = new AspectIterator<>(
+					pathPrefix + netId + "/aspects_cx2/" + CxNode.ASPECT_NAME, CxNode.class)) {
+				while (ei.hasNext()) {
+					CxNode node = ei.next();
+					if (nodeIds.contains(Long.valueOf(node.getId()))) {
+						writer.writeElementInFragment(node);
+						cnt++;
+						if (cnt == nodeIds.size())
+							break;
+					}
+				}
+			}
+		}
+		writer.endAspectFragment();
+		
+		cnt = 0;
+		
+		writer.startAspectFragment(CxEdge.ASPECT_NAME);
+
+		if ( edgeFilterCriterion !=null ) {
+			EdgeFilter edgeFilter = new EdgeFilter(edgeFilterCriterion, edgeLimit, order, pathPrefix + netId + "/aspects_cx2/");
+        
+			for ( CxEdge edge: edgeFilter.filterTopN()) {
+				writer.writeElementInFragment(edge);
+				edgeIds.add(edge.getId());
+			}	
+		} else {
+			if (md.stream().anyMatch(x -> x.getName().equals(EdgesElement.ASPECT_NAME))) {
+				try (AspectIterator<CxEdge> ei = new AspectIterator<>(
+						pathPrefix + netId + "/aspects_cx2/" + CxEdge.ASPECT_NAME, CxEdge.class)) {
+					while (ei.hasNext()) {
+						CxEdge edge = ei.next();
+						if (nodeIds.contains(edge.getSource()) && nodeIds.contains(edge.getTarget())) {
+							cnt++;
+							if (edgeLimit > 0 && cnt > edgeLimit) {
+								break;
+							}
+							writer.writeElementInFragment(edge);
+							edgeIds.add(edge.getId());
+						}
+					}
+				}
+			}
+		}
+		System.out.println( edgeIds.size()  + " edges from filtered direct query.");
+		writer.endAspectFragment();
+
+	
+		writeStyles(nodeIds, edgeIds, writer,md);
+		
+		writer.finish();
+		long t2 = Calendar.getInstance().getTimeInMillis();
+
+		accLogger.info("Total " + (t2-t1)/1000f + " seconds. Returned " + edgeIds.size() + " edges and " +
+		    nodeIds.size() + " nodes.",
+				new Object[]{});
+	}
+
+	
+	private void writeStyles(Set<Long> nodeIds, Set<Long> edgeIds, CXWriter writer,
+			  List<CxMetadata> md) throws IOException, JsonProcessingException, NdexException {
+
+		//write out styles
+		if (md.stream().anyMatch( x -> x.getName().equals(CxVisualProperty.ASPECT_NAME))) {
+			writer.startAspectFragment(CxVisualProperty.ASPECT_NAME);
+			try (AspectIterator<CxVisualProperty> it = new AspectIterator<>(
+					pathPrefix + netId + "/aspects_cx2/" + CxVisualProperty.ASPECT_NAME, CxVisualProperty.class)) {
+				while (it.hasNext()) {
+					writer.writeElementInFragment(it.next());
+				}
+			}
+			writer.endAspectFragment();
+		}	
+		
+		//process bypass aspects
+		if (md.stream().anyMatch( x -> x.getName().equals(CxNodeBypass.ASPECT_NAME))) {
+			writer.startAspectFragment(CxNodeBypass.ASPECT_NAME);
+			try (AspectIterator<CxNodeBypass> it = new AspectIterator<>(
+					pathPrefix + netId + "/aspects_cx2/" + CxNodeBypass.ASPECT_NAME, CxNodeBypass.class)) {
+				while (it.hasNext()) {
+					CxNodeBypass elmt = it.next();
+					if ( nodeIds.contains(elmt.getId()) ){
+						writer.writeElementInFragment(elmt);
+					}
+				}
+			}
+			writer.endAspectFragment();
+		}	
+		if (md.stream().anyMatch( x -> x.getName().equals(CxEdgeBypass.ASPECT_NAME))) {
+			writer.startAspectFragment(CxEdgeBypass.ASPECT_NAME);
+			try (AspectIterator<CxEdgeBypass> it = new AspectIterator<>(
+					pathPrefix + netId + "/aspects_cx2/" + CxEdgeBypass.ASPECT_NAME, CxEdgeBypass.class)) {
+				while (it.hasNext()) {
+					CxEdgeBypass elmt = it.next();
+					if ( edgeIds.contains(elmt.getId()) ){
+						writer.writeElementInFragment(elmt);
+					}
+				}
+			}
+			writer.endAspectFragment();
+		}	
+
+		if ( md.stream().anyMatch(x -> x.getName().equals(VisualEditorProperties.ASPECT_NAME))) {
+			writer.writeAspectFromAspectFile(VisualEditorProperties.ASPECT_NAME, 
+					pathPrefix + netId + "/aspects_cx2/" + VisualEditorProperties.ASPECT_NAME);
+			
+		}
+	
+		
+	
+	}
+
 /*	
 	private class NodeDegreeHelper {
 		
