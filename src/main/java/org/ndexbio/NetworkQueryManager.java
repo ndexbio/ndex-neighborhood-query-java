@@ -605,11 +605,11 @@ public class NetworkQueryManager {
 			directConnectQuery(out,nodeIds);
 	}
 	
-	public void interConnectQueryCX2(OutputStream out, Set<Long> nodeIds) throws IOException, NdexException {
+	public void interConnectQueryCX2(OutputStream out, Set<Long> nodeIds, boolean preserveNodeCoordinates) throws IOException, NdexException {
 		if (this.depth >=2 ) {
-			oneStepInterConnectQueryCX2(out,nodeIds);
+			oneStepInterConnectQueryCX2(out,nodeIds, preserveNodeCoordinates);
 		} else 
-			directConnectQueryCX2(out,nodeIds);
+			directConnectQueryCX2(out,nodeIds, preserveNodeCoordinates);
 	}
 	
 	private void oneStepInterConnectQuery(OutputStream out, Set<Long> nodeIds ) throws IOException {
@@ -963,7 +963,8 @@ public class NetworkQueryManager {
 	 * @throws IOException
 	 * @throws NdexException 
 	 */
-	public void neighbourhoodQueryCX2(OutputStream out, Set<Long> nodeIds, boolean flagQueryNodeInResult) throws IOException, NdexException {
+	public void neighbourhoodQueryCX2(OutputStream out, Set<Long> nodeIds, boolean flagQueryNodeInResult, 
+			boolean preserveNodeCoordinates) throws IOException, NdexException {
 		long t1 = Calendar.getInstance().getTimeInMillis();
 		Set<Long> edgeIds = new TreeSet<> ();
 		usingOldVisualPropertyAspect = false;
@@ -1058,6 +1059,8 @@ public class NetworkQueryManager {
 					    }
 					    attrs.put(queryNode, true);
 					}
+					if(!preserveNodeCoordinates)
+						node.removeCoordinates();
 					writer.writeElementInFragment(node);
 				}
 			}
@@ -1425,11 +1428,11 @@ public class NetworkQueryManager {
 	}
 	
 	
-	private void directConnectQueryCX2(OutputStream out, Set<Long> nodeIds ) throws IOException, NdexException {
+	private void directConnectQueryCX2(OutputStream out, Set<Long> nodeIds, boolean preserveNodeCoordinates ) throws IOException, NdexException {
 		long t1 = Calendar.getInstance().getTimeInMillis();
 		
 		Set<Long> edgeIds = new TreeSet<> ();
-		Set<Long> queryNodeIds = new HashSet<>(nodeIds);
+		//Set<Long> queryNodeIds = new HashSet<>(nodeIds);
 		String queryName = "Direct";
 
 				
@@ -1460,6 +1463,8 @@ public class NetworkQueryManager {
 				while (ei.hasNext()) {
 					CxNode node = ei.next();
 					if (nodeIds.contains(Long.valueOf(node.getId()))) {
+						if ( !preserveNodeCoordinates)
+							node.removeCoordinates();
 						writer.writeElementInFragment(node);
 						cnt++;
 						if (cnt == nodeIds.size())
@@ -1527,7 +1532,7 @@ public class NetworkQueryManager {
 				new Object[]{});
 	}
 
-	private void oneStepInterConnectQueryCX2(OutputStream out, Set<Long> nodeIds ) throws IOException, NdexException {
+	private void oneStepInterConnectQueryCX2(OutputStream out, Set<Long> nodeIds, boolean preserveNodeCoordinates ) throws IOException, NdexException {
 		long t1 = Calendar.getInstance().getTimeInMillis();
 		Map<Long, CxEdge> edgeTable = new TreeMap<> ();
 		String queryName = "Interconnect";
@@ -1535,7 +1540,7 @@ public class NetworkQueryManager {
 		//NodeId -> unique neighbor node ids
 		Map<Long,NodeDegreeHelper> nodeNeighborIdTable = new TreeMap<>();
 		
-		Set<Long> queryNodeIds = new HashSet<>(nodeIds);
+		//Set<Long> queryNodeIds = new HashSet<>(nodeIds);
 		
 		CXWriter writer = new CXWriter(out, true);
 		List<CxMetadata> md = prepareMetadataCX2() ;
@@ -1697,7 +1702,9 @@ public class NetworkQueryManager {
 			while (ei.hasNext()) {
 				CxNode node = ei.next();
 				if (finalNodes.contains(Long.valueOf(node.getId()))) {
-						writer.writeElementInFragment(node);
+					if ( !preserveNodeCoordinates)
+						node.removeCoordinates();
+					writer.writeElementInFragment(node);
 				}
 			}
 		}
@@ -1735,7 +1742,7 @@ public class NetworkQueryManager {
 	 * @throws NdexException
 	 */
 	public void filteredDirectQueryCX2(OutputStream out, Set<Long> nodeIds, FilterCriterion edgeFilterCriterion, long parentNetworkTimestamp,
-			int edgeLimit, String order ) throws IOException, NdexException {
+			int edgeLimit, String order, boolean preserveNodeCoordinates ) throws IOException, NdexException {
 		long t1 = Calendar.getInstance().getTimeInMillis();
 		
 		Set<Long> edgeIds = new TreeSet<> ();
@@ -1778,6 +1785,8 @@ public class NetworkQueryManager {
 				while (ei.hasNext()) {
 					CxNode node = ei.next();
 					if (nodeIds.contains(Long.valueOf(node.getId()))) {
+						if ( !preserveNodeCoordinates)
+							node.removeCoordinates();
 						writer.writeElementInFragment(node);
 						cnt++;
 						if (cnt == nodeIds.size())

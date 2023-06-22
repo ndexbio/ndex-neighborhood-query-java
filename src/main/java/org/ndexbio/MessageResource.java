@@ -77,6 +77,7 @@ public class MessageResource {
 	public Response  interConnectQuery(
 			@PathParam("networkId") final String networkIdStr,
 			@DefaultValue("false") @QueryParam("outputCX2") boolean outputCX2,
+			@DefaultValue("false") @QueryParam("preserveCoordinates") boolean preserveNodeCoordinates,
 			final SimplePathQuery queryParameters
 			) throws SolrServerException, IOException, NdexException {
 		
@@ -103,7 +104,7 @@ public class MessageResource {
 			throw new NdexException("IOExcetion when creating the piped output stream: "+ e.getMessage());
 		}
 		
-		new InterConnectQueryWriterThread(out,networkId,queryParameters,nodeIds, outputCX2).start();
+		new InterConnectQueryWriterThread(out,networkId,queryParameters,nodeIds, outputCX2,preserveNodeCoordinates).start();
 		//setZipFlag();
 		return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(in).build();
 		
@@ -132,13 +133,16 @@ public class MessageResource {
 		private SimplePathQuery parameters;
 		private Set<Long> startingNodeIds;
 		private boolean outputCX2;
+		private boolean preserveCoordinates;
 		
-		public InterConnectQueryWriterThread (OutputStream out, UUID  networkUUID, SimplePathQuery query,Set<Long> nodeIds, boolean outputCX2 ) {
+		public InterConnectQueryWriterThread (OutputStream out, UUID  networkUUID, SimplePathQuery query,Set<Long> nodeIds, boolean outputCX2,
+				boolean preserveNodeCoordinates ) {
 			o = out;
 			networkId = networkUUID;
 			this.parameters = query;
 			startingNodeIds = nodeIds;
 			this.outputCX2 = outputCX2;
+			this.preserveCoordinates = preserveNodeCoordinates;
 		}
 		
 		@Override
@@ -146,7 +150,7 @@ public class MessageResource {
 			NetworkQueryManager b = new NetworkQueryManager(networkId, parameters);
 			try {
 				if ( outputCX2)
-					b.interConnectQueryCX2(o, startingNodeIds);
+					b.interConnectQueryCX2(o, startingNodeIds, preserveCoordinates);
 				else 
 				    b.interConnectQuery(o, startingNodeIds);
 			} catch (IOException | NdexException e) {
@@ -172,6 +176,7 @@ public class MessageResource {
 		public Response  queryNetwork(
 				@PathParam("networkId") final String networkIdStr,
 				@DefaultValue("false") @QueryParam("outputCX2") boolean outputCX2,
+				@DefaultValue("false") @QueryParam("perserveCoordinates") boolean perserveCoordinates,
 				final SimplePathQuery queryParameters
 				) throws SolrServerException, IOException, NdexException {
 			
@@ -198,7 +203,7 @@ public class MessageResource {
 				throw new NdexException("IOExcetion when creating the piped output stream: "+ e.getMessage());
 			}
 			
-			new CXNetworkQueryWriterThread(out,networkId,queryParameters,nodeIds, outputCX2).start();
+			new CXNetworkQueryWriterThread(out,networkId,queryParameters,nodeIds, outputCX2, perserveCoordinates).start();
 			//setZipFlag();
 			return Response.ok().type(MediaType.APPLICATION_JSON_TYPE).entity(in).build();
 			
@@ -211,13 +216,16 @@ public class MessageResource {
 			private SimplePathQuery parameters;
 			private Set<Long> startingNodeIds;
 			private boolean outputCX2;
+			private boolean preserveNodeCoordinates;
 			
-			public CXNetworkQueryWriterThread (OutputStream out, UUID  networkUUID, SimplePathQuery query,Set<Long> nodeIds, boolean outputCX2) {
+			public CXNetworkQueryWriterThread (OutputStream out, UUID  networkUUID, SimplePathQuery query,Set<Long> nodeIds, 
+					boolean outputCX2,boolean preserveCoordinates) {
 				o = out;
 				networkId = networkUUID;
 				this.parameters = query;
 				startingNodeIds = nodeIds;
 				this.outputCX2 = outputCX2;
+				this.preserveNodeCoordinates = preserveCoordinates;
 			}
 			
 			@Override
@@ -225,7 +233,7 @@ public class MessageResource {
 				NetworkQueryManager b = new NetworkQueryManager(networkId, parameters);
 				try {
 					if ( outputCX2) 
-						b.neighbourhoodQueryCX2(o, startingNodeIds,true);
+						b.neighbourhoodQueryCX2(o, startingNodeIds,true, preserveNodeCoordinates);
 					else
 						b.neighbourhoodQuery(o, startingNodeIds);
 				} catch (IOException | NdexException e) {
