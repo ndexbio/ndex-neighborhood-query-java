@@ -1,8 +1,8 @@
 package org.ndexbio;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.ext.ExceptionMapper;
 
 import org.ndexbio.model.exceptions.BadRequestException;
 import org.slf4j.Logger;

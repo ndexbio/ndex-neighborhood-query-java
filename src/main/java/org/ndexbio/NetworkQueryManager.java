@@ -16,8 +16,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 
-import org.eclipse.jetty.util.log.Log;
-import org.eclipse.jetty.util.log.Logger;
+
 import org.ndexbio.cx2.aspect.element.core.CxAttributeDeclaration;
 import org.ndexbio.cx2.aspect.element.core.CxEdge;
 import org.ndexbio.cx2.aspect.element.core.CxEdgeBypass;
@@ -55,11 +54,14 @@ import org.ndexbio.model.object.SimplePathQuery;
 import org.ndexbio.model.tools.EdgeFilter;
 import org.ndexbio.model.tools.NodeDegreeHelper;
 
+
 import com.fasterxml.jackson.core.JsonProcessingException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NetworkQueryManager {
 
-	static Logger accLogger = Log.getRootLogger();
+	public static Logger accLogger = LoggerFactory.getLogger("NetworkQueryManager");
 //  	Log.getRootLogger().info("Embedded Jetty logging started.", new Object[]{});
 
 	private int depth;

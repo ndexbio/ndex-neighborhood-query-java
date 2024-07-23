@@ -13,31 +13,34 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
-import javax.servlet.ServletInputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
-import org.eclipse.jetty.util.log.Log;
 import org.ndexbio.cxio.util.CxConstants;
 import org.ndexbio.model.exceptions.NdexException;
 import org.ndexbio.model.object.SimplePathQuery;
 import org.ndexbio.model.tools.SearchUtilities;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Path("/v1")
 public class MessageResource {
+	
+	public static Logger logger = LoggerFactory.getLogger("MessageResource");
 
   @SuppressWarnings("static-method")
   @GET
@@ -81,8 +84,8 @@ public class MessageResource {
 			final SimplePathQuery queryParameters
 			) throws SolrServerException, IOException, NdexException {
 		
-		Log.getRootLogger().info("Interconnect Query term: " + queryParameters.getSearchString());
-		Log.getRootLogger().info("Interconnect Query edgeLimit: " + queryParameters.getEdgeLimit());
+		logger.info("Interconnect Query term: " + queryParameters.getSearchString());
+		logger.info("Interconnect Query edgeLimit: " + queryParameters.getEdgeLimit());
 
 		UUID networkId = UUID.fromString(networkIdStr);
 		Set<Long> nodeIds = queryParameters.getNodeIds() == null ?  
@@ -122,7 +125,7 @@ public class MessageResource {
 			}
 		}
 		
-		Log.getRootLogger().info("Solr returned " + nodeIds.size() + " ids.");
+		logger.info("Solr returned " + nodeIds.size() + " ids.");
 		
 		return nodeIds;
 	}
@@ -180,8 +183,8 @@ public class MessageResource {
 				final SimplePathQuery queryParameters
 				) throws SolrServerException, IOException, NdexException {
 			
-			Log.getRootLogger().info("Neighorhood Query term: " + queryParameters.getSearchString());
-			Log.getRootLogger().info("Neighorhood Query edgeLimit: " + queryParameters.getEdgeLimit());
+			logger.info("Neighorhood Query term: " + queryParameters.getSearchString());
+			logger.info("Neighorhood Query edgeLimit: " + queryParameters.getEdgeLimit());
 			UUID networkId = UUID.fromString(networkIdStr);
 
 			Set<Long> nodeIds = queryParameters.getNodeIds() == null ?  
