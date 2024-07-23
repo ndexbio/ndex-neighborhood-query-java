@@ -4,7 +4,7 @@
 
 	<groupId>org.ndexbio</groupId>
 	<artifactId>ndex-neighborhoodquery</artifactId>
-	<version>1.1.6</version>
+	<version>1.2.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>ndex-neighborhoodquery</name>
@@ -12,24 +12,15 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<resteasy.version>3.1.4.Final</resteasy.version>
-		<junit.version>4.11</junit.version>
-		<servlet-api.version>4.0.0</servlet-api.version>
-		<jetty.version>9.4.8.v20171121</jetty.version>
+		<resteasy.version>6.2.8.Final</resteasy.version>
+		<servlet-api.version>6.0.0</servlet-api.version>
+		<jetty.version>12.0.11</jetty.version>
 
 		<maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
-		<maven-compiler-plugin.version>3.5.1</maven-compiler-plugin.version>
-		
-		<maven.compiler.source>1.8</maven.compiler.source>
-   		<maven.compiler.target>1.8</maven.compiler.target>		
+		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>	
 	</properties>
 
 	<dependencies>
-		<dependency>
-			<groupId>org.jboss.resteasy</groupId>
-			<artifactId>resteasy-jaxrs</artifactId>
-			<version>${resteasy.version}</version>
-		</dependency>
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-servlet-initializer</artifactId>
@@ -40,7 +31,17 @@
 			<artifactId>resteasy-jackson2-provider</artifactId>
 			<version>${resteasy.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.jboss.resteasy</groupId>
+			<artifactId>resteasy-core</artifactId>
+			<version>${resteasy.version}</version>
+		</dependency>
 
+		<dependency>
+			<groupId>org.jboss.resteasy</groupId>
+			<artifactId>resteasy-core-spi</artifactId>
+			<version>${resteasy.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.jboss.resteasy</groupId>
 			<artifactId>resteasy-multipart-provider</artifactId>
@@ -53,31 +54,37 @@
 		</dependency>
 		<!-- Jetty runtime dependencies -->
 		<dependency>
-			<groupId>javax.servlet</groupId>
-			<artifactId>javax.servlet-api</artifactId>
+			<groupId>jakarta.servlet</groupId>
+			<artifactId>jakarta.servlet-api</artifactId>
 			<version>${servlet-api.version}</version>
+			<!-- <scope>provided</scope> -->
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.eclipse.jetty.ee10/jetty-ee10-servlet -->
 		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-servlet</artifactId>
+			<groupId>org.eclipse.jetty.ee10</groupId>
+			<artifactId>jetty-ee10-servlet</artifactId>
 			<version>${jetty.version}</version>
 		</dependency>
-
+		<dependency>
+			<groupId>org.eclipse.jetty.ee10</groupId>
+			<artifactId>jetty-ee10-servlets</artifactId>
+			<version>${jetty.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.solr</groupId>
 			<artifactId>solr-solrj</artifactId>
-			<version>8.1.1</version>
+			<version>9.6.0</version>
 		</dependency>
 
 		<dependency>
 			<groupId>org.ndexbio</groupId>
 			<artifactId>ndex-object-model</artifactId>
-			<version>2.5.4</version>
+			<version>2.5.7-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
-			<version>1.2.3</version>
+			<version>1.5.6</version>
 		</dependency>
 	</dependencies>
 
@@ -85,7 +92,15 @@
 	<build>
 		<finalName>NDExQuery-${project.version}</finalName>
 		<plugins>
-
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven-compiler-plugin.version}</version>
+				<configuration>
+				  <source>17</source>
+				  <target>17</target>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
@@ -112,10 +127,7 @@
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-										<source>1.8</source>
-					<target>1.8</target>
 							<transformers>
-							
 								<transformer
 									implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
 								<transformer
@@ -129,7 +141,6 @@
 					</execution>
 				</executions>
 			</plugin>
-		
 		</plugins>
 	</build>
 </project>
