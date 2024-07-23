@@ -50,6 +50,7 @@ import org.ndexbio.model.cx.SupportElement;
 import org.ndexbio.model.exceptions.BadRequestException;
 import org.ndexbio.model.exceptions.NdexException;
 import org.ndexbio.model.network.query.FilterCriterion;
+import org.ndexbio.model.network.query.FilteredDirectQuery;
 import org.ndexbio.model.object.SimplePathQuery;
 import org.ndexbio.model.tools.EdgeFilter;
 import org.ndexbio.model.tools.NodeDegreeHelper;
@@ -1743,11 +1744,14 @@ public class NetworkQueryManager {
 	 * @throws IOException
 	 * @throws NdexException
 	 */
-	public void filteredDirectQueryCX2(OutputStream out, Set<Long> nodeIds, FilterCriterion edgeFilterCriterion, long parentNetworkTimestamp,
+	public void filteredDirectQueryCX2(OutputStream out, FilteredDirectQuery queryObject, long parentNetworkTimestamp,
 			int edgeLimit, String order, boolean preserveNodeCoordinates ) throws IOException, NdexException {
 		long t1 = Calendar.getInstance().getTimeInMillis();
 		
 		Set<Long> edgeIds = new TreeSet<> ();
+		Set<Long> nodeIds = queryObject.getNodeIds();
+		if (nodeIds == null)
+			throw new NdexException("Node Ids are missing in the query object.");
 				
 		CXWriter writer = new CXWriter(out, true);
 		List<CxMetadata> md = prepareMetadataCX2() ;
@@ -1803,8 +1807,8 @@ public class NetworkQueryManager {
 		
 		writer.startAspectFragment(CxEdge.ASPECT_NAME);
 
-		if ( edgeFilterCriterion !=null ) {
-			EdgeFilter edgeFilter = new EdgeFilter(edgeFilterCriterion, edgeLimit, order, pathPrefix + netId + "/aspects_cx2/");
+		if ( queryObject.getName() !=null ) {
+			EdgeFilter edgeFilter = new EdgeFilter(queryObject, edgeLimit, order, pathPrefix + netId + "/aspects_cx2/");
         
 			for ( CxEdge edge: edgeFilter.filterTopN()) {
 				writer.writeElementInFragment(edge);
