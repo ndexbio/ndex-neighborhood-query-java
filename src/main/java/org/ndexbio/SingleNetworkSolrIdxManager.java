@@ -38,26 +38,59 @@ import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.BaseHttpSolrClient;
-import org.apache.solr.client.solrj.impl.HttpSolrClient;
+import org.apache.solr.client.solrj.impl.HttpJdkSolrClient;
+import org.apache.solr.client.solrj.impl.HttpSolrClientBase;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocumentList;
 import org.ndexbio.model.exceptions.BadRequestException;
 import org.ndexbio.model.exceptions.NdexException;
 
+/**
+ * 
+ */
 public class SingleNetworkSolrIdxManager implements AutoCloseable{
 
-	private String solrUrl;
 	
 	private String collectionName; 
-	private HttpSolrClient client;
+	private HttpSolrClientBase client;
 		
 	public static final String ID = "id";
+	
+	/**
+	 * default SOLR url if not set via constructor
+	 */
+	public static final String DEFAULT_SOLR_URL = "http://localhost:8983/solr";
+	
+	public SingleNetworkSolrIdxManager(HttpSolrClientBase client){
+		this.collectionName = client.getDefaultCollection();
+		this.client = client;
+	}
 
-		
+	/**
+	 * Constructor
+	 * 
+	 * @param networkUUID name of network aka collection
+	 * @param solrURL base SOLR URL
+	 */
+	public SingleNetworkSolrIdxManager(String networkUUID, final String solrURL){
+		this(new HttpJdkSolrClient.Builder(solrURL).withDefaultCollection(networkUUID).build());
+	}
+	
+	/**
+	 * Constructor
+	 * 
+	 * @param networkUUID
+	 */
 	public SingleNetworkSolrIdxManager(String networkUUID) {
-		collectionName = networkUUID;
-		solrUrl = "http://localhost:8983/solr";
-		client = new HttpSolrClient.Builder(solrUrl).build();
+		this(networkUUID, DEFAULT_SOLR_URL);
+	}
+	
+	/**
+	 * Gets client created in constructor. Mainly exists for testing
+	 * purposes
+	 */
+	protected HttpSolrClientBase getClient(){
+		return client;
 	}
 	
 	protected static NdexException convertException(BaseHttpSolrClient.RemoteSolrException e, String core_name) {
@@ -74,8 +107,6 @@ public class SingleNetworkSolrIdxManager implements AutoCloseable{
 	}
 	
 	public SolrDocumentList getNodeIdsByQuery(String query, int limit) throws SolrServerException, IOException, NdexException {
-		client.setBaseURL(solrUrl+ "/" + collectionName);
-
 		SolrQuery solrQuery = new SolrQuery();
 		
 		solrQuery.setQuery(query).setFields(ID);
@@ -96,7 +127,7 @@ public class SingleNetworkSolrIdxManager implements AutoCloseable{
 		}
 	}
 	
-	
+	@Override
 	public void close () {
 		try {
 			client.close();
