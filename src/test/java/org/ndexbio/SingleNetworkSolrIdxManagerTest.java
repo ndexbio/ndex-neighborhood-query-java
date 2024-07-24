@@ -37,6 +37,7 @@ public class SingleNetworkSolrIdxManagerTest {
 	public void testConstructor(){
 		SingleNetworkSolrIdxManager manager = new SingleNetworkSolrIdxManager("foo");
 		assertEquals(manager.getClient().getDefaultCollection(), "foo");
+		
 		assertEquals(manager.getClient().getBaseURL(), SingleNetworkSolrIdxManager.DEFAULT_SOLR_URL);
 		// try close
 		manager.close();
