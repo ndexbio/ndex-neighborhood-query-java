@@ -34,6 +34,11 @@ import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+
+import javax.net.ssl.SSLContext;
+
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -68,12 +73,31 @@ public class SingleNetworkSolrIdxManager implements AutoCloseable{
 
 	/**
 	 * Constructor
-	 * 
+	 *
 	 * @param networkUUID name of network aka collection
 	 * @param solrURL base SOLR URL
 	 */
 	public SingleNetworkSolrIdxManager(String networkUUID, final String solrURL){
-		this(new HttpJdkSolrClient.Builder(solrURL).withDefaultCollection(networkUUID).build());
+		this(buildSolrClient(networkUUID, solrURL));
+	}
+
+	// HttpJdkSolrClient uses Java's built-in HttpClient which eagerly calls
+	// SSLContext.getDefault() even for plain HTTP connections. On Java 21 this
+	// triggers DefaultSSLContext initialization which fails in some server
+	// environments (broken JCE provider / Cipher.getInstance failure). Providing
+	// an explicit TLS context bypasses getDefault() entirely.
+	private static HttpSolrClientBase buildSolrClient(String networkUUID, String solrURL) {
+		SSLContext sslContext;
+		try {
+			sslContext = SSLContext.getInstance("TLS");
+			sslContext.init(null, null, null);
+		} catch (NoSuchAlgorithmException | KeyManagementException e) {
+			throw new RuntimeException("Failed to initialize SSL context for Solr client: " + e.getMessage(), e);
+		}
+		return new HttpJdkSolrClient.Builder(solrURL)
+				.withDefaultCollection(networkUUID)
+				.withSSLContext(sslContext)
+				.build();
 	}
 	
 	/**
