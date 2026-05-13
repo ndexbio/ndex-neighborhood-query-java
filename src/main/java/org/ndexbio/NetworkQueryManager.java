@@ -1270,11 +1270,18 @@ public class NetworkQueryManager {
 		}	
 
 		if ( md.stream().anyMatch(x -> x.getName().equals(VisualEditorProperties.ASPECT_NAME))) {
-			writer.writeAspectFromAspectFile(VisualEditorProperties.ASPECT_NAME, 
+			writer.writeAspectFromAspectFile(VisualEditorProperties.ASPECT_NAME,
 					pathPrefix + netId + "/aspects_cx2/" + VisualEditorProperties.ASPECT_NAME);
-			
+
 		}
-		
+
+		// process filterWidgets aspect
+		if ( md.stream().anyMatch(x -> x.getName().equals("filterWidgets"))) {
+			writer.writeAspectFromAspectFile("filterWidgets",
+					pathPrefix + netId + "/aspects_cx2/" + "filterWidgets");
+
+		}
+
 		// process function terms
 		
 		if (md.stream().anyMatch( x -> x.getName().equals(FunctionTermElement.ASPECT_NAME))) {
@@ -1891,13 +1898,20 @@ public class NetworkQueryManager {
 		}	
 
 		if ( md.stream().anyMatch(x -> x.getName().equals(VisualEditorProperties.ASPECT_NAME))) {
-			writer.writeAspectFromAspectFile(VisualEditorProperties.ASPECT_NAME, 
+			writer.writeAspectFromAspectFile(VisualEditorProperties.ASPECT_NAME,
 					pathPrefix + netId + "/aspects_cx2/" + VisualEditorProperties.ASPECT_NAME);
-			
+
 		}
-	
-		
-	
+
+		// process filterWidgets aspect
+		if ( md.stream().anyMatch(x -> x.getName().equals("filterWidgets"))) {
+			writer.writeAspectFromAspectFile("filterWidgets",
+					pathPrefix + netId + "/aspects_cx2/" + "filterWidgets");
+
+		}
+
+
+
 	}
 
 /*	
